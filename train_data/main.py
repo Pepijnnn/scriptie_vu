@@ -1,5 +1,6 @@
 import pandas as pd
 from sklearn.cluster import KMeans
+import argparse
 
 from stack_for_visual import Store
 
@@ -9,6 +10,8 @@ def main(**kwargs):
     bep_tekst = pd.read_csv('8 columns from mmi_Lab_MMI_BepalingenTekst.txt', sep='\t', encoding="UTF-16")
     isolaten = pd.read_csv('9 columns from mmi_Lab_MMI_Isolaten.txt', sep='\t', encoding="UTF-16")
     opname = pd.read_csv('alle columns mmi_Opname_Opname.txt', sep='\t', encoding="UTF-16")
+
+    s = Store()
 
     mns = []
     for c, num in enumerate(lab_res["RISV_Waarde"]):
@@ -31,6 +34,7 @@ def main(**kwargs):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description = 'Visualizer for antibiotic resistance in medical cultures')
+    args = parser.parse_args()
 
 main(**vars(args))
 
