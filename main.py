@@ -1,6 +1,7 @@
 import pandas as pd
 import matplotlib
 import numpy as np
+import math
 matplotlib.use("TkAgg")
 from matplotlib import pyplot as plt
 import argparse
@@ -15,13 +16,16 @@ sel1_datatype = [["Monsternummer","StudieNummer","MateriaalShortName","WerkplekC
 
 def main(**kwargs):
     tab_one = pd.read_csv('../../offline_files/7 columns from mmi_Lab_MMI_Resistentie.txt', sep='\t', encoding="UTF-16")
-    tab_two = pd.read_csv('../../offline_files/8 columns from mmi_Lab_MMI_BepalingenTekst', sep='\t', encoding="UTF-16")
+    tab_two = pd.read_csv('../../offline_files/8 columns from mmi_Lab_MMI_BepalingenTekst.txt', sep='\t', encoding="UTF-16")
     tab_three = pd.read_csv('../../offline_files/9 columns from mmi_Lab_MMI_Isolaten.txt', sep='\t', encoding="UTF-16")
-    tab_four = pd.read_csv('../../offline_files/alle columns mmi_Opname_Opname', sep='\t', encoding="UTF-16")  
+    tab_four = pd.read_csv('../../offline_files/alle columns mmi_Opname_Opname.txt', sep='\t', encoding="UTF-16")  
 
+    # drop non-important columns
     def drop_ni_columns(df):
         df = df.drop(['AfnameDatum'], axis=1)
+        df = df.drop(['IsolaatNummer'], axis=1)
         df = df.drop(['Pseudo_id'], axis=1)
+        df = df.drop(['MicroOrganismeCode'], axis=1)
         return df
 
     # add the number of resistent bacterias found from every monster
@@ -67,17 +71,48 @@ def main(**kwargs):
         plt.scatter(standard_embedding[:, 0], standard_embedding[:, 1], c=labels, s=30, cmap='Spectral')
         plt.show()
 
+    # don't know yet what is going to happen here
     def extravalues(df1, df2, df3, df4):
-        # count for each monsternummer there was a resistant bacteria
-        mns = []
+        # count for each monsternummer there was a resistant bacteria and add the ab_name
+        mns, ab_naam = [], []
         for c, num in enumerate(df2["RISV_Waarde"]):
             if str(num) == "R":
                 mns.append(df2["MonsterNummer"][c])
+                ab_naam.append([df2["MonsterNummer"][c],df2["IsolaatNummer"][c],df2["AntibioticaNaam"][c]])
         count_dict = {x:mns.count(x) for x in mns}
+        
+        df1["ResAB_amount"] = np.nan
+        df1["Res_antibiotica"] = np.nan
+        df1["Res_antibiotica2"] = np.nan
+        for c, num in enumerate(df1["MonsterNummer"]):
+            # if count_dict.get(num):
+            #     df1["ResAB_amount"].loc[c] = count_dict.get(num)
+            for x, y, z in ab_naam:
+                if x == num and df1["IsolaatNummer"][c] == y:
+                    if count_dict.get(num):
+                        df1["ResAB_amount"].loc[c] = count_dict.get(num)
+                    if pd.isna(df1["Res_antibiotica"].loc[c]):
+                        df1["Res_antibiotica"].loc[c] = z
+                    else:
+                        df1["Res_antibiotica2"].loc[c] = z
+        # print(df1)
+        # exit()
+        df1 = drop_ni_columns(df1)
+        df1["Res_antibiotica2"].fillna(0, inplace = True)
+        df1["Res_antibiotica"].fillna(0, inplace = True)
+        df1["ResAB_amount"].fillna(0, inplace = True)
+        for col in df1.columns:
+            df1[col]= df1[col].fillna(df1[col].value_counts().idxmax())
 
+        print(df1)
+        le = preprocessing.LabelEncoder()
+        labels = le.fit_transform(df1["ResAB_amount"])
+        one_hot_table = pd.get_dummies(df1)
+        standard_embedding = umap.UMAP(random_state=42).fit_transform(one_hot_table)
+        plt.scatter(standard_embedding[:, 0], standard_embedding[:, 1], c=labels, s=30, cmap='Spectral')
+        plt.show()
 
     if kwargs["f"] == "a":
-        print("hoi")
         unsup_one_table(tab_three)
     elif kwargs["f"] == "b":
         add_res_amount(tab_three, tab_one)  
