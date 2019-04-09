@@ -33,17 +33,26 @@ def main(**kwargs):
             if count_dict.get(num):
                 df1["ResAB_amount"].loc[c] = count_dict.get(num)
         df1["ResAB_amount"].fillna(0, inplace = True)
+        # df1.fillna(method='ffill', inplace = True)
+        for col in df1.columns:
+            df1[col]= df1[col].fillna(df1[col].value_counts().idxmax())
+        # df1['PhylumDivisionGroup'] = df1['PhylumDivisionGroup'].fillna(df1['PhylumDivisionGroup'].value_counts().idxmax())
+        #print(df1['PhylumDivisionGroup'].value_counts().idxmax())
         print(df1)
+        # one_hot_table = pd.get_dummies(df1)
+        # standard_embedding = umap.UMAP(random_state=42).fit_transform(one_hot_table)
+        # plt.scatter(standard_embedding[:, 0], standard_embedding[:, 1], s=30, cmap='Spectral')
+        # plt.show()
 
-    # def unsup_one_table(one_table):
-    #     table = pd.DataFrame(one_table)
-    #     for col in table.columns:
-    #         table[str(col)].fillna(method ='ffill', inplace = True) 
+    def unsup_one_table(one_table):
+        table = pd.DataFrame(one_table)
+        for col in table.columns:
+            table[str(col)].fillna(method ='ffill', inplace = True) 
 
-    #     one_hot_table = pd.get_dummies(table)
-    #     standard_embedding = umap.UMAP(random_state=42).fit_transform(one_hot_table)
-    #     plt.scatter(standard_embedding[:, 0], standard_embedding[:, 1], s=30, cmap='Spectral')
-    #     plt.show()
+        one_hot_table = pd.get_dummies(table)
+        standard_embedding = umap.UMAP(random_state=42).fit_transform(one_hot_table)
+        plt.scatter(standard_embedding[:, 0], standard_embedding[:, 1], s=30, cmap='Spectral')
+        plt.show()
 
     #unsup_one_table(tab_three)  
     add_res_amount(tab_three, tab_one)  
