@@ -30,6 +30,16 @@ def main(**kwargs):
 
     # add the number of resistent bacterias found from every monster
     def add_res_amount(df1, df2):
+
+        # add risv value as column to graph 1
+        df1["RISV_Waarde"] = np.nan
+        for mon_nr, isolaat, risv in zip(df2["MonsterNummer"], df2["IsolaatNummer"], df2["RISV_Waarde"]):
+            if str(risv) == "R":
+                for i, (mon_nr2, isolaat2) in enumerate(zip(df1["MonsterNummer"], df1["IsolaatNummer"])):
+                    if mon_nr == mon_nr2 and isolaat == isolaat2: 
+                        df1["RISV_Waarde"][i] = risv
+        df1["RISV_Waarde"].fillna(0, inplace = True)
+
         # count for each monsternummer there was a resistant bacteria
         mns = []
         for c, num in enumerate(df2["RISV_Waarde"]):
@@ -40,9 +50,9 @@ def main(**kwargs):
         # add new colomn of previous count file and fill the NaNs with 0's
         df1["ResAB_amount"] = np.nan
         for c, num in enumerate(df1["MonsterNummer"]):
-            if count_dict.get(num):
-                df1["ResAB_amount"].loc[c] = count_dict.get(num)
-        df1["ResAB_amount"].fillna(0, inplace = True)
+            # if count_dict.get(num):
+            df1["ResAB_amount"].loc[c] = count_dict.get(num, 0) # build-in else statement
+        # df1["ResAB_amount"].fillna(0, inplace = True)
 
         # fill other NaN's with most frequent string in column an drop Not Important columns
         for col in df1.columns:
@@ -127,3 +137,25 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
 main(**vars(args))
+
+
+
+
+
+
+########### OLD CODE #############
+
+
+# count for each monsternummer there was a resistant bacteria
+        # mns = []
+        # for c, num in enumerate(df2["RISV_Waarde"]):
+        #     if str(num) == "R":
+        #         mns.append(df2["MonsterNummer"][c])
+        # count_dict = {x:mns.count(x) for x in mns}
+
+        # # add new colomn of previous count file and fill the NaNs with 0's
+        # df1["ResAB_amount"] = np.nan
+        # for c, num in enumerate(df1["MonsterNummer"]):
+        #     if count_dict.get(num):
+        #         df1["ResAB_amount"].loc[c] = count_dict.get(num)
+        # df1["ResAB_amount"].fillna(0, inplace = True)
