@@ -1,12 +1,17 @@
 import pandas as pd
 import matplotlib
+from sklearn.utils import shuffle
 import numpy as np
 import math
 matplotlib.use("TkAgg")
 from matplotlib import pyplot as plt
 import argparse
 from sklearn import preprocessing
+import matplotlib as mpl
 import umap
+from pylab import cm
+import seaborn as sns
+# https://sp-ap-abisfire1:81
 
 sel1_datatype = [["Monsternummer","StudieNummer","MateriaalShortName","WerkplekCode","BepalingCode","ArtsCode","AfdelingCodeAanvrager","Locatie","Waarde","Uitslag"],
 ["Monsternummer","IsolaatNummer","MicroOrganismeCode","AfnameDatum","ArtsCode","AfdelingCodeAanvrager","AfdelingNaamAanvrager","AfdelingKliniekPoliAanvrager","OrganisatieCodeAanvrager","OrganisatieNaamAanvrager","StudieNummer","MicroOrganismeOuder","MicroOrganismeOuderOuder","MicroBiologieProcedureCode","MicroOrganismeName","MicroOrganismeType","MicroOrganismeParentCode","MateriaalCode","Kingdom","PhylumDivisionGroup","Class","Order","Family","Genus","MateriaalDescription","MateriaalShortName","ExternCommentaar","TimeStamp"],
@@ -19,6 +24,7 @@ def main(**kwargs):
     tab_two = pd.read_csv('../../offline_files/8 columns from mmi_Lab_MMI_BepalingenTekst.txt', sep='\t', encoding="UTF-16")
     tab_three = pd.read_csv('../../offline_files/9 columns from mmi_Lab_MMI_Isolaten.txt', sep='\t', encoding="UTF-16")
     tab_four = pd.read_csv('../../offline_files/alle columns mmi_Opname_Opname.txt', sep='\t', encoding="UTF-16")  
+    tab_five = pd.read_csv('../../offline_files/mmi_Lab_MMI_Isolaten.txt', sep='\t', encoding="UTF-16")  
 
     # drop non-important columns
     def drop_ni_columns(df):
@@ -69,17 +75,52 @@ def main(**kwargs):
 
     # unsupervised learning over Isolaten table coloured with different microorganisms
     def unsup_one_table(table):
+        # sns.set(style='white', context='poster', rc={'figure.figsize':(14,10)})
+        narrow_table = table[['AfnameDatum','MonsterNummer','IsolaatNummer','MicroOrganismeName', 'MicroOrganismeType', 'Family', 'MateriaalCode', 'ArtsCode', 'AfdelingNaamAanvrager']]
         # fill NaN's with most frequent string from that column
         for col in table.columns:
-            table[col]= table[col].fillna(table[col].value_counts().idxmax())
-
+            if col == "AfnameDatum" or col == "MonsterNummer" or col == "IsolaatNummer":
+                table[col].fillna(0, inplace=True)
+            else:
+                table[col].fillna("0", inplace=True) #table[col].value_counts().idxmax()
+        
+        # Delete part of rows
+        short_table = narrow_table[~narrow_table.AfdelingNaamAanvrager.str.contains("Polikliniek")]
+        
         # do the unsupervised learning where the micro organisms have different colours
         le = preprocessing.LabelEncoder()
-        labels = le.fit_transform(table["MicroOrganismeName"])
-        one_hot_table = pd.get_dummies(table)
-        standard_embedding = umap.UMAP(random_state=42).fit_transform(one_hot_table)
-        plt.scatter(standard_embedding[:, 0], standard_embedding[:, 1], c=labels, s=30, cmap='Spectral')
-        plt.show()
+        label = le.fit_transform(short_table["AfdelingNaamAanvrager"])
+        labels2 = le.fit(short_table["AfdelingNaamAanvrager"])
+        le_name_map = dict(zip(labels2.transform(le.classes_),labels2.classes_))
+        # print(le_name_map)
+        # exit()
+        one_hot_table = pd.get_dummies(short_table[['AfnameDatum','MonsterNummer','IsolaatNummer','MicroOrganismeName', 'MicroOrganismeType', 'Family', 'MateriaalCode', 'ArtsCode']])
+        # standard_embedding = umap.UMAP(random_state=50, n_neighbors=50 ,min_dist= , n_components=, metric=).fit_transform(one_hot_table)
+        # plt.scatter(standard_embedding[:, 0], standard_embedding[:, 1], c=labels, s=10, cmap='Spectral')
+        # plt.show()
+        # nn van 2 tot 200 (hoog)
+        # min_dist 0 tot 1 (hoog)
+        # ncomp = dimensions
+        # metric = Euclidean, manhattan, chebyshev, minkowski. Canberra, braycurtis(slecht), haversine(2d), mahalanobis(werkt niet), wminkowski, seuclidean(slecht). cosine, correlation. 
+        # Binary = hamming, jaccard, dice(y), russellrao, kulsinski, rogerstanimoto(y), sokalmichener(y), sokalsneath, yule(beste)
+
+        def draw_umap(n_neighbors=15, min_dist=0.1, n_components=2, metric='euclidean', title='Antibiotic Resistance'):
+            fit = umap.UMAP(n_neighbors=n_neighbors, min_dist=min_dist, n_components=n_components, metric=metric)
+            u = fit.fit_transform(one_hot_table)
+
+            cmap = cm.get_cmap('jet', len(list(le_name_map.keys()))) 
+            scat = plt.scatter(u[:, 0], u[:, 1], c=label, s=10, cmap=cmap)
+            plt.legend(loc='upper right')
+
+            # bounds = np.linspace(0, len(list(le_name_map.keys()))-1, len(list(le_name_map.keys())))
+            # norm = mpl.colors.BoundaryNorm(bounds, ncolors=len(list(le_name_map.keys()))) 
+            cb = plt.colorbar(scat, spacing='uniform', ticks=list(le_name_map.keys()))
+            cb.ax.set_yticklabels(list(le_name_map.values()))
+            
+            plt.title(title, fontsize=18)
+            plt.show()
+
+        draw_umap(metric='yule', title='yule zonder poli 10k test AfdelingNaamAanvrager Clusters', n_neighbors=100, min_dist=0.8)
 
     # don't know yet what is going to happen here
     def extravalues(df1, df2, df3, df4):
@@ -123,7 +164,7 @@ def main(**kwargs):
         plt.show()
 
     if kwargs["f"] == "a":
-        unsup_one_table(tab_three)
+        unsup_one_table(shuffle(tab_five.loc[:1_000].copy(), random_state=42))
     elif kwargs["f"] == "b":
         add_res_amount(tab_three, tab_one)  
     elif kwargs["f"] == "c":
@@ -141,21 +182,3 @@ main(**vars(args))
 
 
 
-
-
-########### OLD CODE #############
-
-
-# count for each monsternummer there was a resistant bacteria
-        # mns = []
-        # for c, num in enumerate(df2["RISV_Waarde"]):
-        #     if str(num) == "R":
-        #         mns.append(df2["MonsterNummer"][c])
-        # count_dict = {x:mns.count(x) for x in mns}
-
-        # # add new colomn of previous count file and fill the NaNs with 0's
-        # df1["ResAB_amount"] = np.nan
-        # for c, num in enumerate(df1["MonsterNummer"]):
-        #     if count_dict.get(num):
-        #         df1["ResAB_amount"].loc[c] = count_dict.get(num)
-        # df1["ResAB_amount"].fillna(0, inplace = True)
