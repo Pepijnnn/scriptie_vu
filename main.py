@@ -11,6 +11,7 @@ import matplotlib as mpl
 import umap
 from pylab import cm
 import seaborn as sns
+from tqdm import tqdm
 
 #sel1_datatype = [["Monsternummer","StudieNummer","MateriaalShortName","WerkplekCode","BepalingCode","ArtsCode","AfdelingCodeAanvrager","Locatie","Waarde","Uitslag"],
 #["Monsternummer","IsolaatNummer","MicroOrganismeCode","AfnameDatum","ArtsCode","AfdelingCodeAanvrager","AfdelingNaamAanvrager","AfdelingKliniekPoliAanvrager","OrganisatieCodeAanvrager","OrganisatieNaamAanvrager","StudieNummer","MicroOrganismeOuder","MicroOrganismeOuderOuder","MicroBiologieProcedureCode","MicroOrganismeName","MicroOrganismeType","MicroOrganismeParentCode","MateriaalCode","Kingdom","PhylumDivisionGroup","Class","Order","Family","Genus","MateriaalDescription","MateriaalShortName","ExternCommentaar","TimeStamp"],
@@ -24,6 +25,11 @@ def main(**kwargs):
     tab_three = pd.read_csv('../../offline_files/9 columns from mmi_Lab_MMI_Isolaten.txt', sep='\t', encoding="UTF-16")
     tab_four = pd.read_csv('../../offline_files/alle columns mmi_Opname_Opname.txt', sep='\t', encoding="UTF-16")  
     tab_five = pd.read_csv('../../offline_files/mmi_Lab_MMI_Isolaten.txt', sep='\t', encoding="UTF-16")  
+    tab_six = pd.read_csv('../../offline_files/mmi_Lab_MMI_Resistentie_5col.txt', sep='\t', encoding="UTF-16")  
+    # tab_seven = pd.read_csv('../../offline_files/combined_df.txt', sep='\t', encoding="UTF-16")  
+    tab_eight = pd.read_csv('../../offline_files/pandas_merge.txt', sep='\t', encoding="UTF-16-be")  
+    
+    
 
     # drop non-important columns
     def drop_ni_columns(df):
@@ -33,52 +39,96 @@ def main(**kwargs):
         df = df.drop(['MicroOrganismeCode'], axis=1)
         return df
 
+    def create_new_text(df, name):
+        tfile = open('../../offline_files/{}.txt'.format(name), 'w+')
+        tfile.write(df.to_string())
+        tfile.close()
+
+    def two_to_one_df(df1, df2):
+        df1 = df1[['MonsterNummer','IsolaatNummer','MicroOrganismeOuder', 'MateriaalDescription']].copy()
+        df2 = df2[['MonsterNummer','IsolaatNummer','AntibioticaNaam', 'RISV_Waarde']].copy()
+        # # add risv value as column to df1
+        # # df1["RISV_Waarde"] = np.nan
+        # # for mon_nr, isolaat, risv in zip(df2["MonsterNummer"], df2["IsolaatNummer"], df2["RISV_Waarde"]):
+        # #     if str(risv) == "R":
+        # #         for i, (mon_nr2, isolaat2) in enumerate(zip(df1["MonsterNummer"], df1["IsolaatNummer"])):
+        # #             if mon_nr == mon_nr2 and isolaat == isolaat2: 
+        # #                 df1["RISV_Waarde"][i] = risv
+        # # df1["RISV_Waarde"].fillna(0, inplace = True)
+
+        # # count for each monsternummer there was a resistant bacteria
+        # mns = list()
+        # for c, num in enumerate(df2["RISV_Waarde"]):
+        #     if str(num) == "R":
+        #         mns.append((df2["MonsterNummer"][c], df2["IsolaatNummer"][c]))
+        # count_dict = {x:mns.count(x) for x in mns}
+        
+        # # add the antibioticanaam as a new column concat join
+        # df1["AntibioticaNaam"] = np.nan
+        # for mon_nr, isolaat, abn in zip(df2["MonsterNummer"], df2["IsolaatNummer"], df2["AntibioticaNaam"]):
+        #     for i, (mon_nr2, isolaat2) in enumerate(zip(df1["MonsterNummer"], df1["IsolaatNummer"])):
+        #         if mon_nr == mon_nr2 and isolaat == isolaat2: 
+        #             df1["AntibioticaNaam"][i] = abn
+        #             break
+        # df1["AntibioticaNaam"].fillna("0", inplace = True)
+        
+        # # add new colomn of previous count file and fill the NaNs with 0's
+        # df1["ResAB_amount"] = np.nan
+        # for c, (mn, isn) in tqdm(enumerate(zip(df1["MonsterNummer"], df1["IsolaatNummer"]))):
+        #     df1["ResAB_amount"].loc[c] = count_dict.get((mn, isn), 0) # build-in else statement
+
+        df3 = pd.merge(df1,df2[['MonsterNummer','IsolaatNummer','AntibioticaNaam','RISV_Waarde']], on=["MonsterNummer", "IsolaatNummer"])
+        create_new_text(df3, 'pandas_merge')
+
     # add the number of resistent bacterias found from every monster
-    def add_res_amount(df1, df2):
-
-        # add risv value as column to graph 1
-        df1["RISV_Waarde"] = np.nan
-        for mon_nr, isolaat, risv in zip(df2["MonsterNummer"], df2["IsolaatNummer"], df2["RISV_Waarde"]):
-            if str(risv) == "R":
-                for i, (mon_nr2, isolaat2) in enumerate(zip(df1["MonsterNummer"], df1["IsolaatNummer"])):
-                    if mon_nr == mon_nr2 and isolaat == isolaat2: 
-                        df1["RISV_Waarde"][i] = risv
-        df1["RISV_Waarde"].fillna(0, inplace = True)
-
-        # count for each monsternummer there was a resistant bacteria
-        mns = []
-        for c, num in enumerate(df2["RISV_Waarde"]):
-            if str(num) == "R":
-                mns.append(df2["MonsterNummer"][c])
-        count_dict = {x:mns.count(x) for x in mns}
-
-        # add new colomn of previous count file and fill the NaNs with 0's
-        df1["ResAB_amount"] = np.nan
-        for c, num in enumerate(df1["MonsterNummer"]):
-            # if count_dict.get(num):
-            df1["ResAB_amount"].loc[c] = count_dict.get(num, 0) # build-in else statement
-        # df1["ResAB_amount"].fillna(0, inplace = True)
+    def combined_dataframe(df1, df2):
+        # df = pd.read_csv('../../offline_files/mmi_Lab_MMI_Resistentie_5col.txt', sep='\t', encoding="UTF-16")  
+        df1 = df1[['MonsterNummer','IsolaatNummer','MicroOrganismeOuder', 'MateriaalDescription']].copy()
+        df2 = df2[['MonsterNummer','IsolaatNummer','AntibioticaNaam', 'RISV_Waarde']].copy()
+        df3 = pd.merge(df1,df2[['MonsterNummer','IsolaatNummer','AntibioticaNaam','RISV_Waarde']], on=["MonsterNummer", "IsolaatNummer"])
+        
+        df3 = df3.drop(['MonsterNummer'], axis=1).copy()
+        df3 = df3.drop(['IsolaatNummer'], axis=1).copy()
 
         # fill other NaN's with most frequent string in column an drop Not Important columns
-        for col in df1.columns:
-            df1[col]= df1[col].fillna(df1[col].value_counts().idxmax())
-        df1 = drop_ni_columns(df1)
+        for col in df3.columns:
+            df3[col].fillna("0", inplace=True)
+            # df3[col]= df3[col].fillna(df3[col].value_counts().idxmax())
+        # df3 = drop_ni_columns(df3)
 
         # put colours relative to amount AB res column and create the clusters using umap and show them
+        focus_table = "RISV_Waarde"
         le = preprocessing.LabelEncoder()
-        labels = le.fit_transform(df1["ResAB_amount"])
-        one_hot_table = pd.get_dummies(df1)
-        standard_embedding = umap.UMAP(random_state=42).fit_transform(one_hot_table)
-        plt.scatter(standard_embedding[:, 0], standard_embedding[:, 1], c=labels, s=30, cmap='Spectral')
-        plt.show()
+        label = le.fit_transform(df3[focus_table])
+        labels2 = le.fit(df3[focus_table])
+        le_name_map = dict(zip(labels2.transform(le.classes_),labels2.classes_))
+        one_hot_table = pd.get_dummies(df3[["AntibioticaNaam","MicroOrganismeOuder","MateriaalDescription"]])
+        # one_hot_table = pd.get_dummies(df1)
+
+        def draw_umap(n_neighbors=50, min_dist=0.5, n_components=2, metric='yule', title='Antibiotic Resistance'):
+            fit = umap.UMAP(n_neighbors=n_neighbors, min_dist=min_dist, n_components=n_components, metric=metric)
+            u = fit.fit_transform(one_hot_table)
+
+            # set the colourmap and amount of colours finally create the scatterplot
+            cmap = cm.get_cmap('jet', len(list(le_name_map.keys()))) 
+            scat = plt.scatter(u[:, 0], u[:, 1], c=label, s=10, cmap=cmap)
+ 
+            cb = plt.colorbar(scat, spacing='uniform', ticks=list(le_name_map.keys()))
+            cb.ax.set_yticklabels(list(le_name_map.values()))
+            
+            plt.title(title, fontsize=18)
+            plt.show()
+
+        draw_umap(metric=kwargs["metric"], title="S4 metric:{}, nn:{}, min_dis:{}, amount:{} AB Resistentie".format(kwargs["metric"], kwargs["nn"], kwargs["min_dis"], kwargs["amount"]), 
+            n_neighbors=kwargs["nn"], min_dist=kwargs["min_dis"])
 
     # unsupervised learning over Isolaten table coloured with different microorganisms
     def unsup_one_table(table):
         # sns.set(style='white', context='poster', rc={'figure.figsize':(14,10)})
-        # print(table.shape)
-        # print(max(table.Pseudo_id))
+        # print(list(table))
         # exit()
-        narrow_table = table[['AfnameDatum','MonsterNummer','IsolaatNummer','MicroOrganismeName', 'MicroOrganismeType', 'Family', 'MateriaalCode', 'ArtsCode', 'AfdelingNaamAanvrager']]
+        # select the columns you want to calculate
+        narrow_table = table[['AfnameDatum','MonsterNummer','IsolaatNummer','MicroOrganismeName', 'MateriaalCode', 'ArtsCode', 'AfdelingNaamAanvrager']]
         # fill NaN's with most frequent string from that column
         for col in narrow_table.columns:
             if col == "AfnameDatum" or col == "MonsterNummer" or col == "IsolaatNummer":
@@ -103,15 +153,9 @@ def main(**kwargs):
         label = le.fit_transform(short_table[focus_table])
         labels2 = le.fit(short_table[focus_table])
         le_name_map = dict(zip(labels2.transform(le.classes_),labels2.classes_))
-        # print(le_name_map)
-        # exit()
-        one_hot_table = pd.get_dummies(short_table[['AfnameDatum','MonsterNummer','IsolaatNummer','AfdelingNaamAanvrager', 'MicroOrganismeType', 'Family', 'MateriaalCode', 'ArtsCode']])
-        # standard_embedding = umap.UMAP(random_state=50, n_neighbors=50 ,min_dist= , n_components=, metric=).fit_transform(one_hot_table)
-        # plt.scatter(standard_embedding[:, 0], standard_embedding[:, 1], c=labels, s=10, cmap='Spectral')
-        # plt.show()
-        # nn van 2 tot 200 (hoog)
-        # min_dist 0 tot 1 (hoog)
-        # ncomp = dimensions
+        one_hot_table = pd.get_dummies(short_table[['AfnameDatum','MonsterNummer','IsolaatNummer','AfdelingNaamAanvrager', 'MateriaalCode', 'ArtsCode']])
+    
+        # nn van 2 tot 200 (hoog) min_dist 0 tot 1 (hoog) ncomp = dimensions
         # metric = Euclidean, manhattan, chebyshev, minkowski. Canberra, braycurtis(slecht), haversine(2d), mahalanobis(werkt niet), wminkowski, seuclidean(slecht). cosine, correlation. 
         # Binary = hamming, jaccard, dice(y), russellrao, kulsinski, rogerstanimoto(y), sokalmichener(y), sokalsneath, yule(beste)
 
@@ -122,10 +166,7 @@ def main(**kwargs):
             # set the colourmap and amount of colours finally create the scatterplot
             cmap = cm.get_cmap('jet', len(list(le_name_map.keys()))) 
             scat = plt.scatter(u[:, 0], u[:, 1], c=label, s=10, cmap=cmap)
-            plt.legend(loc='upper right')
 
-            # bounds = np.linspace(0, len(list(le_name_map.keys()))-1, len(list(le_name_map.keys())))
-            # norm = mpl.colors.BoundaryNorm(bounds, ncolors=len(list(le_name_map.keys()))) 
             cb = plt.colorbar(scat, spacing='uniform', ticks=list(le_name_map.keys()))
             cb.ax.set_yticklabels(list(le_name_map.values()))
             
@@ -133,7 +174,8 @@ def main(**kwargs):
             plt.show()
             print(short_table.shape)
 
-        draw_umap(metric='yule', title='S4 yule 30 0.5 200k MicroOrganismeNaam Clusters', n_neighbors=30, min_dist=0.5)
+        draw_umap(metric=kwargs["metric"], title="S4 metric:{}, nn:{}, min_dis:{}, amount:{} MicroOrganismeNaam".format(kwargs["metric"], kwargs["nn"], kwargs["min_dis"], kwargs["amount"]), 
+            n_neighbors=kwargs["nn"], min_dist=kwargs["min_dis"])
 
     # don't know yet what is going to happen here
     def extravalues(df1, df2, df3, df4):
@@ -177,17 +219,21 @@ def main(**kwargs):
         plt.show()
 
     if kwargs["f"] == "a":
-        unsup_one_table(tab_five.loc[:200_000].copy())
+        unsup_one_table(tab_five.loc[:kwargs["amount"]].copy())
     elif kwargs["f"] == "b":
-        add_res_amount(tab_three, tab_one)  
+        combined_dataframe(tab_five.loc[:kwargs["amount"]].copy(),tab_six.loc[:kwargs["amount"]].copy())  
     elif kwargs["f"] == "c":
         extravalues(tab_three, tab_one, tab_two, tab_four)
+    elif kwargs["f"] == "d":
+        two_to_one_df(tab_five.copy(),tab_six.copy())
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description = 'Unsupervised learning function')
-    parser.add_argument("--f", default="a", help="select which function to use")
-    # parser.add_argument("--one", default="y", help="unsupervised learning over 1 table")
-    # parser.add_argument("--resadd", default = "n",  help="unsupervised learning over 1 table plus amount of res bacteria added per monstersample")
+    parser.add_argument("--f", default="b", help="select which function to use")
+    parser.add_argument("--amount", default=300_000, help="select over how many rows you want to do the unsupervised learning")
+    parser.add_argument("--nn", default = 30,  help="select the amount of nn cells for the umap")
+    parser.add_argument("--min_dis", default = 0.2,  help="select the minimal distance for the umap")
+    parser.add_argument("--metric", default = "sokalsneath",  help="select which metric for the umap you want to compute")
     args = parser.parse_args()
 
 main(**vars(args))
