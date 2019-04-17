@@ -11,13 +11,12 @@ import matplotlib as mpl
 import umap
 from pylab import cm
 import seaborn as sns
-# https://sp-ap-abisfire1:81
 
-sel1_datatype = [["Monsternummer","StudieNummer","MateriaalShortName","WerkplekCode","BepalingCode","ArtsCode","AfdelingCodeAanvrager","Locatie","Waarde","Uitslag"],
-["Monsternummer","IsolaatNummer","MicroOrganismeCode","AfnameDatum","ArtsCode","AfdelingCodeAanvrager","AfdelingNaamAanvrager","AfdelingKliniekPoliAanvrager","OrganisatieCodeAanvrager","OrganisatieNaamAanvrager","StudieNummer","MicroOrganismeOuder","MicroOrganismeOuderOuder","MicroBiologieProcedureCode","MicroOrganismeName","MicroOrganismeType","MicroOrganismeParentCode","MateriaalCode","Kingdom","PhylumDivisionGroup","Class","Order","Family","Genus","MateriaalDescription","MateriaalShortName","ExternCommentaar","TimeStamp"],
-["Monsternummer","LabIndicator","AfnameDatum","BepalingsCode","IsolaatNummer","AntibioticaNaam","AB_Code","Methode","MIC_RuweWaarde","E_TestRuweWaarde","AgarDiffRuweWaarde","RISV_Waarde","TimeStamp"],
-["VoorschriftId","Pseudo_id","OpnameID","Startmoment","Status_naam","Snelheid","Snelheidseenheid","Dosis","DosisEenheid","Toedieningsroute","MedicatieArtikelCode","MedicatieArtikelNaam","MedicatieArtikelATCcode","MedicatieArtikelATCnaam","FarmaceutischeKlasse","FarmaceutischeSubklasse","TherapeutischeKlasse","Werkplek_code","Werkplek_omschrijving","Bron"],
-["Pseudo_id","Geslacht","Geboortedatum","Overlijdensdatum","IsOverleden","Land"]]  
+#sel1_datatype = [["Monsternummer","StudieNummer","MateriaalShortName","WerkplekCode","BepalingCode","ArtsCode","AfdelingCodeAanvrager","Locatie","Waarde","Uitslag"],
+#["Monsternummer","IsolaatNummer","MicroOrganismeCode","AfnameDatum","ArtsCode","AfdelingCodeAanvrager","AfdelingNaamAanvrager","AfdelingKliniekPoliAanvrager","OrganisatieCodeAanvrager","OrganisatieNaamAanvrager","StudieNummer","MicroOrganismeOuder","MicroOrganismeOuderOuder","MicroBiologieProcedureCode","MicroOrganismeName","MicroOrganismeType","MicroOrganismeParentCode","MateriaalCode","Kingdom","PhylumDivisionGroup","Class","Order","Family","Genus","MateriaalDescription","MateriaalShortName","ExternCommentaar","TimeStamp"],
+#["Monsternummer","LabIndicator","AfnameDatum","BepalingsCode","IsolaatNummer","AntibioticaNaam","AB_Code","Methode","MIC_RuweWaarde","E_TestRuweWaarde","AgarDiffRuweWaarde","RISV_Waarde","TimeStamp"],
+#["VoorschriftId","Pseudo_id","OpnameID","Startmoment","Status_naam","Snelheid","Snelheidseenheid","Dosis","DosisEenheid","Toedieningsroute","MedicatieArtikelCode","MedicatieArtikelNaam","MedicatieArtikelATCcode","MedicatieArtikelATCnaam","FarmaceutischeKlasse","FarmaceutischeSubklasse","TherapeutischeKlasse","Werkplek_code","Werkplek_omschrijving","Bron"],
+#["Pseudo_id","Geslacht","Geboortedatum","Overlijdensdatum","IsOverleden","Land"]]  
 
 def main(**kwargs):
     tab_one = pd.read_csv('../../offline_files/7 columns from mmi_Lab_MMI_Resistentie.txt', sep='\t', encoding="UTF-16")
@@ -76,25 +75,37 @@ def main(**kwargs):
     # unsupervised learning over Isolaten table coloured with different microorganisms
     def unsup_one_table(table):
         # sns.set(style='white', context='poster', rc={'figure.figsize':(14,10)})
+        # print(table.shape)
+        # print(max(table.Pseudo_id))
+        # exit()
         narrow_table = table[['AfnameDatum','MonsterNummer','IsolaatNummer','MicroOrganismeName', 'MicroOrganismeType', 'Family', 'MateriaalCode', 'ArtsCode', 'AfdelingNaamAanvrager']]
         # fill NaN's with most frequent string from that column
-        for col in table.columns:
+        for col in narrow_table.columns:
             if col == "AfnameDatum" or col == "MonsterNummer" or col == "IsolaatNummer":
-                table[col].fillna(0, inplace=True)
+                narrow_table[col].fillna(0, inplace=True)
             else:
-                table[col].fillna("0", inplace=True) #table[col].value_counts().idxmax()
+                narrow_table[col].fillna("0", inplace=True) #table[col].value_counts().idxmax()
         
         # Delete part of rows
-        short_table = narrow_table[~narrow_table.AfdelingNaamAanvrager.str.contains("Polikliniek")]
+        # narrow_table["AfdelingNaamAanvrager"] = narrow_table["AfdelingNaamAanvrager"].fillna("0", inplace=True)
+        # short_table = narrow_table[narrow_table.AfdelingNaamAanvrager.str.contains("Polikliniek")]
+
+        focus_table = "MicroOrganismeName"
+
+        # delete most of the "MicroOrganismeName" table for visualisation
+        m_set = list(set(narrow_table[focus_table]))
+        # mm_set = m_set[:int(0.10*len(m_set))]
+        rest = m_set[int(0.10*len(m_set)):]
+        short_table = narrow_table[~narrow_table[focus_table].isin(rest)]
         
         # do the unsupervised learning where the micro organisms have different colours
         le = preprocessing.LabelEncoder()
-        label = le.fit_transform(short_table["AfdelingNaamAanvrager"])
-        labels2 = le.fit(short_table["AfdelingNaamAanvrager"])
+        label = le.fit_transform(short_table[focus_table])
+        labels2 = le.fit(short_table[focus_table])
         le_name_map = dict(zip(labels2.transform(le.classes_),labels2.classes_))
         # print(le_name_map)
         # exit()
-        one_hot_table = pd.get_dummies(short_table[['AfnameDatum','MonsterNummer','IsolaatNummer','MicroOrganismeName', 'MicroOrganismeType', 'Family', 'MateriaalCode', 'ArtsCode']])
+        one_hot_table = pd.get_dummies(short_table[['AfnameDatum','MonsterNummer','IsolaatNummer','AfdelingNaamAanvrager', 'MicroOrganismeType', 'Family', 'MateriaalCode', 'ArtsCode']])
         # standard_embedding = umap.UMAP(random_state=50, n_neighbors=50 ,min_dist= , n_components=, metric=).fit_transform(one_hot_table)
         # plt.scatter(standard_embedding[:, 0], standard_embedding[:, 1], c=labels, s=10, cmap='Spectral')
         # plt.show()
@@ -104,10 +115,11 @@ def main(**kwargs):
         # metric = Euclidean, manhattan, chebyshev, minkowski. Canberra, braycurtis(slecht), haversine(2d), mahalanobis(werkt niet), wminkowski, seuclidean(slecht). cosine, correlation. 
         # Binary = hamming, jaccard, dice(y), russellrao, kulsinski, rogerstanimoto(y), sokalmichener(y), sokalsneath, yule(beste)
 
-        def draw_umap(n_neighbors=15, min_dist=0.1, n_components=2, metric='euclidean', title='Antibiotic Resistance'):
+        def draw_umap(n_neighbors=50, min_dist=0.5, n_components=2, metric='yule', title='Antibiotic Resistance'):
             fit = umap.UMAP(n_neighbors=n_neighbors, min_dist=min_dist, n_components=n_components, metric=metric)
             u = fit.fit_transform(one_hot_table)
 
+            # set the colourmap and amount of colours finally create the scatterplot
             cmap = cm.get_cmap('jet', len(list(le_name_map.keys()))) 
             scat = plt.scatter(u[:, 0], u[:, 1], c=label, s=10, cmap=cmap)
             plt.legend(loc='upper right')
@@ -119,8 +131,9 @@ def main(**kwargs):
             
             plt.title(title, fontsize=18)
             plt.show()
+            print(short_table.shape)
 
-        draw_umap(metric='yule', title='yule zonder poli 10k test AfdelingNaamAanvrager Clusters', n_neighbors=100, min_dist=0.8)
+        draw_umap(metric='yule', title='S4 yule 30 0.5 200k MicroOrganismeNaam Clusters', n_neighbors=30, min_dist=0.5)
 
     # don't know yet what is going to happen here
     def extravalues(df1, df2, df3, df4):
@@ -164,7 +177,7 @@ def main(**kwargs):
         plt.show()
 
     if kwargs["f"] == "a":
-        unsup_one_table(shuffle(tab_five.loc[:1_000].copy(), random_state=42))
+        unsup_one_table(tab_five.loc[:200_000].copy())
     elif kwargs["f"] == "b":
         add_res_amount(tab_three, tab_one)  
     elif kwargs["f"] == "c":
