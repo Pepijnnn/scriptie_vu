@@ -1,6 +1,11 @@
 import pandas as pd
 import matplotlib
 from sklearn.utils import shuffle
+from sklearn.model_selection import train_test_split
+from sklearn.model_selection import cross_val_score
+import pickle
+from sklearn.externals import joblib
+from sklearn.svm import SVC
 import numpy as np
 import math
 matplotlib.use("TkAgg")
@@ -47,36 +52,6 @@ def main(**kwargs):
     def two_to_one_df(df1, df2):
         df1 = df1[['MonsterNummer','IsolaatNummer','MicroOrganismeOuder', 'MateriaalDescription']].copy()
         df2 = df2[['MonsterNummer','IsolaatNummer','AntibioticaNaam', 'RISV_Waarde']].copy()
-        # # add risv value as column to df1
-        # # df1["RISV_Waarde"] = np.nan
-        # # for mon_nr, isolaat, risv in zip(df2["MonsterNummer"], df2["IsolaatNummer"], df2["RISV_Waarde"]):
-        # #     if str(risv) == "R":
-        # #         for i, (mon_nr2, isolaat2) in enumerate(zip(df1["MonsterNummer"], df1["IsolaatNummer"])):
-        # #             if mon_nr == mon_nr2 and isolaat == isolaat2: 
-        # #                 df1["RISV_Waarde"][i] = risv
-        # # df1["RISV_Waarde"].fillna(0, inplace = True)
-
-        # # count for each monsternummer there was a resistant bacteria
-        # mns = list()
-        # for c, num in enumerate(df2["RISV_Waarde"]):
-        #     if str(num) == "R":
-        #         mns.append((df2["MonsterNummer"][c], df2["IsolaatNummer"][c]))
-        # count_dict = {x:mns.count(x) for x in mns}
-        
-        # # add the antibioticanaam as a new column concat join
-        # df1["AntibioticaNaam"] = np.nan
-        # for mon_nr, isolaat, abn in zip(df2["MonsterNummer"], df2["IsolaatNummer"], df2["AntibioticaNaam"]):
-        #     for i, (mon_nr2, isolaat2) in enumerate(zip(df1["MonsterNummer"], df1["IsolaatNummer"])):
-        #         if mon_nr == mon_nr2 and isolaat == isolaat2: 
-        #             df1["AntibioticaNaam"][i] = abn
-        #             break
-        # df1["AntibioticaNaam"].fillna("0", inplace = True)
-        
-        # # add new colomn of previous count file and fill the NaNs with 0's
-        # df1["ResAB_amount"] = np.nan
-        # for c, (mn, isn) in tqdm(enumerate(zip(df1["MonsterNummer"], df1["IsolaatNummer"]))):
-        #     df1["ResAB_amount"].loc[c] = count_dict.get((mn, isn), 0) # build-in else statement
-
         df3 = pd.merge(df1,df2[['MonsterNummer','IsolaatNummer','AntibioticaNaam','RISV_Waarde']], on=["MonsterNummer", "IsolaatNummer"])
         create_new_text(df3, 'pandas_merge')
 
@@ -118,8 +93,10 @@ def main(**kwargs):
             
             plt.title(title, fontsize=18)
             plt.show()
+            print(df3.shape)
 
-        draw_umap(metric=kwargs["metric"], title="S4 metric:{}, nn:{}, min_dis:{}, amount:{} AB Resistentie".format(kwargs["metric"], kwargs["nn"], kwargs["min_dis"], kwargs["amount"]), 
+        draw_umap(metric=kwargs["metric"], title=("S4 metric:{}, nn:{}, min_dis:{}, amount:{} AB Resistentie"
+                                .format(kwargs["metric"], kwargs["nn"], kwargs["min_dis"], kwargs["amount"])), 
             n_neighbors=kwargs["nn"], min_dist=kwargs["min_dis"])
 
     # unsupervised learning over Isolaten table coloured with different microorganisms
@@ -174,66 +151,121 @@ def main(**kwargs):
             plt.show()
             print(short_table.shape)
 
-        draw_umap(metric=kwargs["metric"], title="S4 metric:{}, nn:{}, min_dis:{}, amount:{} MicroOrganismeNaam".format(kwargs["metric"], kwargs["nn"], kwargs["min_dis"], kwargs["amount"]), 
-            n_neighbors=kwargs["nn"], min_dist=kwargs["min_dis"])
+        draw_umap(metric=kwargs["metric"], 
+            title=("S4 metric:{}, nn:{}, min_dis:{}, amount:{} MicroOrganismeNaam"
+            .format(kwargs["metric"], kwargs["nn"], kwargs["min_dis"], kwargs["amount"])), 
+            n_neighbors=kwargs["nn"], 
+            min_dist=kwargs["min_dis"])
 
-    # don't know yet what is going to happen here
-    def extravalues(df1, df2, df3, df4):
-        # count for each monsternummer there was a resistant bacteria and add the ab_name
-        mns, ab_naam = [], []
-        for c, num in enumerate(df2["RISV_Waarde"]):
-            if str(num) == "R":
-                mns.append(df2["MonsterNummer"][c])
-                ab_naam.append([df2["MonsterNummer"][c],df2["IsolaatNummer"][c],df2["AntibioticaNaam"][c]])
-        count_dict = {x:mns.count(x) for x in mns}
+    def supervised(df1, df2):
+        df1 = df1[['MonsterNummer','IsolaatNummer','MicroOrganismeOuder', 'MateriaalDescription']].copy()
+        df2 = df2[['MonsterNummer','IsolaatNummer','AntibioticaNaam', 'RISV_Waarde']].copy()
+        df3 = pd.merge(df1,df2[['MonsterNummer','IsolaatNummer','AntibioticaNaam','RISV_Waarde']], on=["MonsterNummer", "IsolaatNummer"])
         
-        df1["ResAB_amount"] = np.nan
-        df1["Res_antibiotica"] = np.nan
-        df1["Res_antibiotica2"] = np.nan
-        for c, num in enumerate(df1["MonsterNummer"]):
-            # if count_dict.get(num):
-            #     df1["ResAB_amount"].loc[c] = count_dict.get(num)
-            for x, y, z in ab_naam:
-                if x == num and df1["IsolaatNummer"][c] == y:
-                    if count_dict.get(num):
-                        df1["ResAB_amount"].loc[c] = count_dict.get(num)
-                    if pd.isna(df1["Res_antibiotica"].loc[c]):
-                        df1["Res_antibiotica"].loc[c] = z
-                    else:
-                        df1["Res_antibiotica2"].loc[c] = z
-        # print(df1)
-        # exit()
-        df1 = drop_ni_columns(df1)
-        df1["Res_antibiotica2"].fillna(0, inplace = True)
-        df1["Res_antibiotica"].fillna(0, inplace = True)
-        df1["ResAB_amount"].fillna(0, inplace = True)
-        for col in df1.columns:
-            df1[col]= df1[col].fillna(df1[col].value_counts().idxmax())
+        
+        df3 = df3.drop(['MonsterNummer'], axis=1).copy()
+        df3 = df3.drop(['IsolaatNummer'], axis=1).copy()
 
-        print(df1)
+        # fill other NaN's with most frequent string in column an drop Not Important columns
+        for col in df3.columns:
+            df3[col].fillna("0", inplace=True)
+
+        # put colours relative to amount AB res column and create the clusters using umap and show them
+        # focus_table = "RISV_Waarde"
+        X = pd.get_dummies(df3[["AntibioticaNaam","MicroOrganismeOuder","MateriaalDescription"]])
+        y = df3.RISV_Waarde
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.20, random_state = 40)
+
         le = preprocessing.LabelEncoder()
-        labels = le.fit_transform(df1["ResAB_amount"])
-        one_hot_table = pd.get_dummies(df1)
-        standard_embedding = umap.UMAP(random_state=42).fit_transform(one_hot_table)
-        plt.scatter(standard_embedding[:, 0], standard_embedding[:, 1], c=labels, s=30, cmap='Spectral')
+        label = le.fit_transform(y)
+        labels2 = le.fit(y)
+        le_name_map = dict(zip(labels2.transform(le.classes_),labels2.classes_))
+
+        train_le = preprocessing.LabelEncoder()
+        train_label = train_le.fit_transform(y_train)
+        train_labels2 = train_le.fit(y_train)
+        train_le_name_map = dict(zip(train_labels2.transform(train_le.classes_),train_labels2.classes_))
+
+        test_le = preprocessing.LabelEncoder()
+        test_label = test_le.fit_transform(y_test)
+        test_labels2 = test_le.fit(y_test)
+        test_le_name_map = dict(zip(test_labels2.transform(test_le.classes_),test_labels2.classes_))
+
+        def draw_umap(metric=kwargs["metric"], n_neighbors=kwargs["nn"], n_components=2, min_dist=kwargs["min_dis"], title='Antibiotic Resistance'):
+            # trans = umap.UMAP(n_neighbors=n_neighbors, min_dist=min_dist, n_components=n_components, metric=metric, random_state=42).fit(X_train)
+            # svc = SVC(gamma = 'auto').fit(trans.embedding_, y_train)
+            # test_embedding = trans.transform(X_test)
+            # print(svc.score(test_embedding, y_test))
+
+            mapper = umap.UMAP(n_neighbors=n_neighbors, min_dist=min_dist, n_components=n_components, metric=metric).fit(X_train, y=train_label)
+            test_embedding = mapper.transform(X_test)
+
+            joblib_file = str(title) + "_{}_".format(len(list(test_le_name_map.keys()))) + ".pkl"
+            joblib.dump(test_embedding, joblib_file)
+            
+            # # load from file
+            # model = joblib.load(joblib_file)
+
+            
+            exit()
+            # set the colourmap and amount of colours finally create the scatterplot
+            
+            #################### Train supervised ################
+            # cmap = cm.get_cmap('jet', len(list(train_le_name_map.keys()))) 
+            # scat = plt.scatter(*mapper.embedding_.T, c=train_label, s=5, cmap=cmap, alpha=1.0)
+ 
+            # cb = plt.colorbar(scat, spacing='uniform', ticks=list(train_le_name_map.keys()))
+            # cb.ax.set_yticklabels(list(train_le_name_map.values()))
+            
+            # plt.title(title, fontsize=18)
+            # plt.show()
+
+            ################# Test Supervised ##############
+            cmap = cm.get_cmap('jet', len(list(test_le_name_map.keys()))) 
+            scat = plt.scatter(*test_embedding.T, c=test_label, s=5, cmap=cmap, alpha=1.0)
+ 
+            cb = plt.colorbar(scat, spacing='uniform', ticks=list(test_le_name_map.keys()))
+            cb.ax.set_yticklabels(list(test_le_name_map.values()))
+            
+            plt.title(title, fontsize=18)
+            plt.show()
+            print(df3.shape)
+
+        draw_umap(metric=kwargs["metric"], 
+            title=("S5_metric={}_nn={}_min_dis={}_amount={}_AB_Resistentie"
+            .format(kwargs["metric"], kwargs["nn"], kwargs["min_dis"], kwargs["amount"])), 
+            n_neighbors=kwargs["nn"], 
+            min_dist=kwargs["min_dis"])
+    
+    def load_pickle(pickl_name, colour_label, key_list, value_list):
+        model = joblib.load(pickl_name)
+        cmap = cm.get_cmap('jet', str(pickl_name).split("_ ")[-2]) 
+        scat = plt.scatter(*model.T, c=colour_label, s=5, cmap=cmap, alpha=1.0)
+
+        cb = plt.colorbar(scat, spacing='uniform', ticks=key_list)
+        cb.ax.set_yticklabels(value_list)
+
+        plt.title(str(pickl_name).split("_ ")[:-2], fontsize=18)
         plt.show()
+        # "S5_metric=yule_nn=80_min_dis=0.3_amount=100000_AB_Resistentie"
 
     if kwargs["f"] == "a":
         unsup_one_table(tab_five.loc[:kwargs["amount"]].copy())
     elif kwargs["f"] == "b":
         combined_dataframe(tab_five.loc[:kwargs["amount"]].copy(),tab_six.loc[:kwargs["amount"]].copy())  
     elif kwargs["f"] == "c":
-        extravalues(tab_three, tab_one, tab_two, tab_four)
-    elif kwargs["f"] == "d":
         two_to_one_df(tab_five.copy(),tab_six.copy())
+    elif kwargs["f"] == "d":
+        supervised(tab_five.copy(),tab_six.copy()) #.loc[:kwargs["amount"]] .loc[:kwargs["amount"]]
 
 if __name__ == '__main__':
+    # optimal min_dis = 0.3, metric = yule, nn= 80
     parser = argparse.ArgumentParser(description = 'Unsupervised learning function')
-    parser.add_argument("--f", default="b", help="select which function to use")
-    parser.add_argument("--amount", default=300_000, help="select over how many rows you want to do the unsupervised learning")
-    parser.add_argument("--nn", default = 30,  help="select the amount of nn cells for the umap")
-    parser.add_argument("--min_dis", default = 0.2,  help="select the minimal distance for the umap")
-    parser.add_argument("--metric", default = "sokalsneath",  help="select which metric for the umap you want to compute")
+    parser.add_argument("--f", default="d", help="select which function to use")
+    parser.add_argument("--amount", default=100_000, help="select over how many rows you want to do the unsupervised learning")
+    parser.add_argument("--nn", default = 80,  help="select the amount of nn cells for the umap")
+    parser.add_argument("--min_dis", default = 0.3,  help="select the minimal distance for the umap")
+    parser.add_argument("--metric", default = "yule",  help="select which metric for the umap you want to compute")
     args = parser.parse_args()
 
 main(**vars(args))
