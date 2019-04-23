@@ -5,6 +5,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import GridSearchCV
 from sklearn.ensemble import RandomForestClassifier
+import itertools
 import pickle
 from sklearn.externals import joblib
 from sklearn.svm import SVC
@@ -34,7 +35,7 @@ def main(**kwargs):
     tab_five = pd.read_csv('../../offline_files/mmi_Lab_MMI_Isolaten.txt', sep='\t', encoding="UTF-16")  
     tab_six = pd.read_csv('../../offline_files/mmi_Lab_MMI_Resistentie_5col.txt', sep='\t', encoding="UTF-16")  
     # tab_seven = pd.read_csv('../../offline_files/combined_df.txt', sep='\t', encoding="UTF-16")  
-    tab_eight = pd.read_csv('../../offline_files/pandas_merge.txt', sep='\t', encoding="UTF-16-be")  
+    tab_eight = pd.read_csv('../../offline_files/15 columns from BepalingTekstMetIsolatenResistentie_tot_103062.txt', sep='\t', encoding="UTF-16")  
     
     
 
@@ -252,31 +253,35 @@ def main(**kwargs):
         plt.show()
         # "S5_metric=yule_nn=80_min_dis=0.3_amount=100000_AB_Resistentie"
 
-    def df_split_for_supervised(df):
-        """ input is a dataframe which contains certain columns and a 'RISV_Waarde' column
-            output are two lists, in which list one are some combinations of df columns and
-            list two is the corresponding RISV values to that column """
-        col_list, risv_list = [], []
-        for i in range(5):
-            pass
-
     def best_cols(df):
         """ input is a datafram which contains certain columns and a 'RISV_Waarde' column
             output is for a combination of the columns which predicts the 'RISV_Waarde' column the best"""
-        df_col_combinations, df_col_corr_risv = df_split_for_supervised(df)
-
-        # df_col_combinations, df_col_corr_risv = list(df[["AntibioticaNaam","MicroOrganismeOuder","MateriaalDescription"]]), list(df["RISV_Waarde"])
-        for i in len(df_col_corr_risv):
-            X = pd.get_dummies(df_col_combinations[i])
-            y = df_col_corr_risv[i]
+        # df.drop(['MonsterNummer', 'IsolaatNummer'], inplace=True, axis=1)
+        df_col_combinations = list(set(itertools.combinations(list(df),3)))
+        for col in df.columns:
+            df[col].fillna("0", inplace=True)
+        y = df['RISV_Waarde']
+        columns_score = []
+        for i in range(len(df_col_combinations)):
+            col_1, col_2, col_3 = df_col_combinations[i]
+            X = pd.get_dummies(df[[col_1, col_2, col_3]])
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.20, random_state = 40)
 
             trans = umap.UMAP(n_neighbors=kwargs["nn"], min_dist=kwargs["min_dis"], n_components=2, metric=kwargs["metric"], random_state=42).fit(X_train)
             svc = SVC(gamma = 'auto').fit(trans.embedding_, y_train)
             test_embedding = trans.transform(X_test)
-            print(svc.score(test_embedding, y_test))
+            print(df_col_combinations[i], svc.score(test_embedding, y_test))
+            
+            columns_score.append([str(col_1), str(col_2), str(col_3), svc.score(test_embedding, y_test)])
+        data_frame = pd.DataFrame(columns_score, columns = ['col_1', 'col_2', 'col_3', 'score'])
+        data_frame.to_csv('best_cols.txt',index=False)
 
     def parameter_tuning(df1, df2):
+        """ input are two specific datadrames that need to have the next columns:
+            df1: ['MonsterNummer','IsolaatNummer','MicroOrganismeOuder', 'MateriaalDescription']
+            df2: ['MonsterNummer','IsolaatNummer','AntibioticaNaam', 'RISV_Waarde']
+            output is a .txt file where we see the best parameters of the umap for these dataframes"""
+
         # combine part of the data frames 
         df1 = df1[['MonsterNummer','IsolaatNummer','MicroOrganismeOuder', 'MateriaalDescription']].copy()
         df2 = df2[['MonsterNummer','IsolaatNummer','AntibioticaNaam', 'RISV_Waarde']].copy()
@@ -327,14 +332,14 @@ def main(**kwargs):
     elif kwargs["f"] == "d":
         supervised(tab_five.loc[:kwargs["amount"]].copy(),tab_six.loc[:kwargs["amount"]].copy()) #.loc[:kwargs["amount"]] .loc[:kwargs["amount"]]
     elif kwargs["f"] == "e":
-        best_cols(tab_nine.copy())
+        best_cols(tab_eight.loc[:kwargs["amount"]].copy())
     elif kwargs["f"] == "f":
         parameter_tuning(tab_five.loc[:kwargs["amount"]].copy(),tab_six.loc[:kwargs["amount"]].copy()) #.loc[:kwargs["amount"]] .loc[:kwargs["amount"]]
 
 if __name__ == '__main__':
     # optimal min_dis = 0.3, metric = yule, nn= 80
     parser = argparse.ArgumentParser(description = 'Unsupervised learning function')
-    parser.add_argument("--f", default="f", help="select which function to use")
+    parser.add_argument("--f", default="e", help="select which function to use")
     parser.add_argument("--amount", default=10_000, help="select over how many rows you want to do the unsupervised learning")
     parser.add_argument("--nn", default = 100,  help="select the amount of nn cells for the umap")
     parser.add_argument("--min_dis", default = 0.5,  help="select the minimal distance for the umap")
