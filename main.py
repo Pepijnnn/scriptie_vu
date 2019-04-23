@@ -253,18 +253,31 @@ def main(**kwargs):
         plt.show()
         # "S5_metric=yule_nn=80_min_dis=0.3_amount=100000_AB_Resistentie"
 
-    def best_cols(df):
-        """ input is a datafram which contains certain columns and a 'RISV_Waarde' column
-            output is for a combination of the columns which predicts the 'RISV_Waarde' column the best"""
-        # df.drop(['MonsterNummer', 'IsolaatNummer'], inplace=True, axis=1)
-        df_col_combinations = list(set(itertools.combinations(list(df),3)))
+    def best_cols(df, col_pred_amount):
+        """ input is a large dataframe which contains certain columns and a 'RISV_Waarde' column
+            output is .txt file consisting of 2+ columns with its prediction of the 'RISV_Waarde' column"""
+
+        # make the database 50/50 of R and S counts in the RISV_Waarde column
+        df.drop(df.loc[(df['RISV_Waarde']=='V') | (df['RISV_Waarde']=='I')].index, inplace=True)
+        df.sort_values(by=['RISV_Waarde'], ascending=False, inplace=True)
+        rest = df.RISV_Waarde.value_counts()['S'] - df.RISV_Waarde.value_counts()['R']
+        df = df.iloc[rest:,].copy()
+
         for col in df.columns:
             df[col].fillna("0", inplace=True)
+
+        # split the predicton column of the df and remove the biased columns
         y = df['RISV_Waarde']
+        df.drop(['Monsternummer', 'IsolaatNummer', 'RISV_Waarde', 'Pseudo_id'], inplace=True, axis=1)
+
+        # split the column in col_pred_amount amount of tuples for each possible combination
+        df_col_combinations = list(set(itertools.combinations(list(df), col_pred_amount)))
+
+        # test for each combination of columns how well they predict R or S
         columns_score = []
-        for i in range(len(df_col_combinations)):
-            col_1, col_2, col_3 = df_col_combinations[i]
-            X = pd.get_dummies(df[[col_1, col_2, col_3]])
+        for i in tqdm(range(len(df_col_combinations))):
+            col_1, col_2  = df_col_combinations[i]
+            X = pd.get_dummies(df[[col_1, col_2]])
             X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.20, random_state = 40)
 
             trans = umap.UMAP(n_neighbors=kwargs["nn"], min_dist=kwargs["min_dis"], n_components=2, metric=kwargs["metric"], random_state=42).fit(X_train)
@@ -272,11 +285,13 @@ def main(**kwargs):
             test_embedding = trans.transform(X_test)
             print(df_col_combinations[i], svc.score(test_embedding, y_test))
             
-            columns_score.append([str(col_1), str(col_2), str(col_3), svc.score(test_embedding, y_test)])
-        data_frame = pd.DataFrame(columns_score, columns = ['col_1', 'col_2', 'col_3', 'score'])
-        data_frame.to_csv('best_cols.txt',index=False)
+            columns_score.append([str(col_1), str(col_2), svc.score(test_embedding, y_test)])
+        
+        # write results to a .txt file
+        data_frame = pd.DataFrame(columns_score, columns = ['col_1', 'col_2', 'score'])
+        data_frame.to_csv(f'best_cols_{kwargs["amount"]}.txt',index=False)
 
-    def parameter_tuning(df1, df2):
+    def best_parameter(df1, df2):
         """ input are two specific datadrames that need to have the next columns:
             df1: ['MonsterNummer','IsolaatNummer','MicroOrganismeOuder', 'MateriaalDescription']
             df2: ['MonsterNummer','IsolaatNummer','AntibioticaNaam', 'RISV_Waarde']
@@ -305,10 +320,12 @@ def main(**kwargs):
         y = df3.RISV_Waarde
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.20, random_state = 40)
 
-        tuning_parameters = {'n_neighbors' : [2, 10, 40, 100, 150],
-                              'min_dist' : [0.1, 0.5, 0.8],
-                              'metric' : ['hamming', 'jaccard', 'dice', 'russellrao', 'kulsinski', 'rogerstanimoto', 'sokalmichener', 'sokalsneath', 'yule']
+        # these are the umap parameters the algorithm is going to calculate
+        tuning_parameters = {'n_neighbors' : [2, 3, 4, 5, 6],
+                              'min_dist' : [0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9],
+                              'metric' : ['sokalsneath', 'yule']
                             }
+        # calculate the SVC of all the options and write them to a text file
         params = []
         for i in tuning_parameters.get('metric'):
             for j in tuning_parameters.get('n_neighbors'):
@@ -320,7 +337,7 @@ def main(**kwargs):
                     params.append([i, j, k, svc.score(test_embedding, y_test)])
                     print(f'the metric used was: {i}, the n_neighbors: {j}, the min_distance: {k}')
         data_frame = pd.DataFrame(params, columns = ['metric', 'nearest_neighbors', 'min_distance', 'score'])
-        data_frame.to_csv('hyper_params.txt',index=False)
+        data_frame.to_csv(f'hyper_params_{kwargs["amount"]}.txt',index=False)
 
 
     if kwargs["f"] == "a":
@@ -332,18 +349,18 @@ def main(**kwargs):
     elif kwargs["f"] == "d":
         supervised(tab_five.loc[:kwargs["amount"]].copy(),tab_six.loc[:kwargs["amount"]].copy()) #.loc[:kwargs["amount"]] .loc[:kwargs["amount"]]
     elif kwargs["f"] == "e":
-        best_cols(tab_eight.loc[:kwargs["amount"]].copy())
+        best_cols(tab_eight.loc[:(kwargs["amount"])].copy(), 2)
     elif kwargs["f"] == "f":
-        parameter_tuning(tab_five.loc[:kwargs["amount"]].copy(),tab_six.loc[:kwargs["amount"]].copy()) #.loc[:kwargs["amount"]] .loc[:kwargs["amount"]]
+        best_parameter(tab_five.loc[:kwargs["amount"]].copy(),tab_six.loc[:kwargs["amount"]].copy()) #.loc[:kwargs["amount"]] .loc[:kwargs["amount"]]
 
 if __name__ == '__main__':
-    # optimal min_dis = 0.3, metric = yule, nn= 80
+    # optimal min_dis = 0.15, metric = yule, nn= 6
     parser = argparse.ArgumentParser(description = 'Unsupervised learning function')
-    parser.add_argument("--f", default="e", help="select which function to use")
-    parser.add_argument("--amount", default=10_000, help="select over how many rows you want to do the unsupervised learning")
-    parser.add_argument("--nn", default = 100,  help="select the amount of nn cells for the umap")
-    parser.add_argument("--min_dis", default = 0.5,  help="select the minimal distance for the umap")
-    parser.add_argument("--metric", default = "hamming",  help="select which metric for the umap you want to compute")
+    parser.add_argument("--f", default="f", help="select which function to use")
+    parser.add_argument("--amount", default=50_000, help="select over how many rows you want to do the unsupervised learning")
+    parser.add_argument("--nn", default = 6,  help="select the amount of nn cells for the umap")
+    parser.add_argument("--min_dis", default = 0.15,  help="select the minimal distance for the umap")
+    parser.add_argument("--metric", default = "yule",  help="select which metric for the umap you want to compute")
     args = parser.parse_args()
 
 main(**vars(args))
