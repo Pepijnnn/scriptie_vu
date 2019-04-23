@@ -3,6 +3,8 @@ import matplotlib
 from sklearn.utils import shuffle
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import GridSearchCV
+from sklearn.ensemble import RandomForestClassifier
 import pickle
 from sklearn.externals import joblib
 from sklearn.svm import SVC
@@ -131,10 +133,6 @@ def main(**kwargs):
         labels2 = le.fit(short_table[focus_table])
         le_name_map = dict(zip(labels2.transform(le.classes_),labels2.classes_))
         one_hot_table = pd.get_dummies(short_table[['AfnameDatum','MonsterNummer','IsolaatNummer','AfdelingNaamAanvrager', 'MateriaalCode', 'ArtsCode']])
-    
-        # nn van 2 tot 200 (hoog) min_dist 0 tot 1 (hoog) ncomp = dimensions
-        # metric = Euclidean, manhattan, chebyshev, minkowski. Canberra, braycurtis(slecht), haversine(2d), mahalanobis(werkt niet), wminkowski, seuclidean(slecht). cosine, correlation. 
-        # Binary = hamming, jaccard, dice(y), russellrao, kulsinski, rogerstanimoto(y), sokalmichener(y), sokalsneath, yule(beste)
 
         def draw_umap(n_neighbors=50, min_dist=0.5, n_components=2, metric='yule', title='Antibiotic Resistance'):
             fit = umap.UMAP(n_neighbors=n_neighbors, min_dist=min_dist, n_components=n_components, metric=metric)
@@ -158,20 +156,25 @@ def main(**kwargs):
             min_dist=kwargs["min_dis"])
 
     def supervised(df1, df2):
+        # combine part of the data frames 
         df1 = df1[['MonsterNummer','IsolaatNummer','MicroOrganismeOuder', 'MateriaalDescription']].copy()
         df2 = df2[['MonsterNummer','IsolaatNummer','AntibioticaNaam', 'RISV_Waarde']].copy()
         df3 = pd.merge(df1,df2[['MonsterNummer','IsolaatNummer','AntibioticaNaam','RISV_Waarde']], on=["MonsterNummer", "IsolaatNummer"])
+
+        # make sure that the amout of R and S rows are the same
+        df3.drop(df3.loc[(df3['RISV_Waarde']=='V') | (df3['RISV_Waarde']=='I')].index, inplace=True)
+        df3.sort_values(by=['RISV_Waarde'], ascending=False, inplace=True)
+        rest = df3.RISV_Waarde.value_counts()['S'] - df3.RISV_Waarde.value_counts()['R']
+        df3 = df3.iloc[rest:,]
         
-        
-        df3 = df3.drop(['MonsterNummer'], axis=1).copy()
-        df3 = df3.drop(['IsolaatNummer'], axis=1).copy()
+        # drop the columns that we don't want to train on
+        df3.drop(['MonsterNummer', 'IsolaatNummer'], inplace=True, axis=1)
 
         # fill other NaN's with most frequent string in column an drop Not Important columns
         for col in df3.columns:
             df3[col].fillna("0", inplace=True)
 
         # put colours relative to amount AB res column and create the clusters using umap and show them
-        # focus_table = "RISV_Waarde"
         X = pd.get_dummies(df3[["AntibioticaNaam","MicroOrganismeOuder","MateriaalDescription"]])
         y = df3.RISV_Waarde
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.20, random_state = 40)
@@ -192,24 +195,24 @@ def main(**kwargs):
         test_le_name_map = dict(zip(test_labels2.transform(test_le.classes_),test_labels2.classes_))
 
         def draw_umap(metric=kwargs["metric"], n_neighbors=kwargs["nn"], n_components=2, min_dist=kwargs["min_dis"], title='Antibiotic Resistance'):
-            # trans = umap.UMAP(n_neighbors=n_neighbors, min_dist=min_dist, n_components=n_components, metric=metric, random_state=42).fit(X_train)
-            # svc = SVC(gamma = 'auto').fit(trans.embedding_, y_train)
-            # test_embedding = trans.transform(X_test)
-            # print(svc.score(test_embedding, y_test))
+            trans = umap.UMAP(n_neighbors=n_neighbors, min_dist=min_dist, n_components=n_components, metric=metric, random_state=42).fit(X_train)
+            svc = SVC(gamma = 'auto').fit(trans.embedding_, y_train)
+            test_embedding = trans.transform(X_test)
+            print(svc.score(test_embedding, y_test))
+            print(f'the metric used was: {kwargs["metric"]}, the n_neighbors: {kwargs["nn"]}, the min_distance: {kwargs["min_dis"]}')
+            exit()
 
+            # for printing the plots to see how well the train or the test proces went
             mapper = umap.UMAP(n_neighbors=n_neighbors, min_dist=min_dist, n_components=n_components, metric=metric).fit(X_train, y=train_label)
             test_embedding = mapper.transform(X_test)
 
-            joblib_file = str(title) + "_{}_".format(len(list(test_le_name_map.keys()))) + ".pkl"
-            joblib.dump(test_embedding, joblib_file)
+            # joblib_file = str(title) + "_{}_".format(len(list(test_le_name_map.keys()))) + ".pkl"
+            # joblib.dump(test_embedding, joblib_file)
             
             # # load from file
             # model = joblib.load(joblib_file)
-
             
-            exit()
             # set the colourmap and amount of colours finally create the scatterplot
-            
             #################### Train supervised ################
             # cmap = cm.get_cmap('jet', len(list(train_le_name_map.keys()))) 
             # scat = plt.scatter(*mapper.embedding_.T, c=train_label, s=5, cmap=cmap, alpha=1.0)
@@ -249,6 +252,72 @@ def main(**kwargs):
         plt.show()
         # "S5_metric=yule_nn=80_min_dis=0.3_amount=100000_AB_Resistentie"
 
+    def df_split_for_supervised(df):
+        """ input is a dataframe which contains certain columns and a 'RISV_Waarde' column
+            output are two lists, in which list one are some combinations of df columns and
+            list two is the corresponding RISV values to that column """
+        col_list, risv_list = [], []
+        for i in range(5):
+            pass
+
+    def best_cols(df):
+        """ input is a datafram which contains certain columns and a 'RISV_Waarde' column
+            output is for a combination of the columns which predicts the 'RISV_Waarde' column the best"""
+        df_col_combinations, df_col_corr_risv = df_split_for_supervised(df)
+
+        # df_col_combinations, df_col_corr_risv = list(df[["AntibioticaNaam","MicroOrganismeOuder","MateriaalDescription"]]), list(df["RISV_Waarde"])
+        for i in len(df_col_corr_risv):
+            X = pd.get_dummies(df_col_combinations[i])
+            y = df_col_corr_risv[i]
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.20, random_state = 40)
+
+            trans = umap.UMAP(n_neighbors=kwargs["nn"], min_dist=kwargs["min_dis"], n_components=2, metric=kwargs["metric"], random_state=42).fit(X_train)
+            svc = SVC(gamma = 'auto').fit(trans.embedding_, y_train)
+            test_embedding = trans.transform(X_test)
+            print(svc.score(test_embedding, y_test))
+
+    def parameter_tuning(df1, df2):
+        # combine part of the data frames 
+        df1 = df1[['MonsterNummer','IsolaatNummer','MicroOrganismeOuder', 'MateriaalDescription']].copy()
+        df2 = df2[['MonsterNummer','IsolaatNummer','AntibioticaNaam', 'RISV_Waarde']].copy()
+        df3 = pd.merge(df1,df2[['MonsterNummer','IsolaatNummer','AntibioticaNaam','RISV_Waarde']], on=["MonsterNummer", "IsolaatNummer"])
+
+        # make sure that the amout of R and S rows are the same
+        df3.drop(df3.loc[(df3['RISV_Waarde']=='V') | (df3['RISV_Waarde']=='I')].index, inplace=True)
+        df3.sort_values(by=['RISV_Waarde'], ascending=False, inplace=True)
+        rest = df3.RISV_Waarde.value_counts()['S'] - df3.RISV_Waarde.value_counts()['R']
+        df3 = df3.iloc[rest:,]
+        
+        # drop the columns that we don't want to train on
+        df3.drop(['MonsterNummer', 'IsolaatNummer'], inplace=True, axis=1)
+
+        # fill other NaN's with most frequent string in column an drop Not Important columns
+        for col in df3.columns:
+            df3[col].fillna("0", inplace=True)
+
+        # put colours relative to amount AB res column and create the clusters using umap and show them
+        X = pd.get_dummies(df3[["AntibioticaNaam","MicroOrganismeOuder","MateriaalDescription"]])
+        y = df3.RISV_Waarde
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.20, random_state = 40)
+
+        tuning_parameters = {'n_neighbors' : [2, 10, 40, 100, 150],
+                              'min_dist' : [0.1, 0.5, 0.8],
+                              'metric' : ['hamming', 'jaccard', 'dice', 'russellrao', 'kulsinski', 'rogerstanimoto', 'sokalmichener', 'sokalsneath', 'yule']
+                            }
+        params = []
+        for i in tuning_parameters.get('metric'):
+            for j in tuning_parameters.get('n_neighbors'):
+                for k in tuning_parameters.get('min_dist'):
+                    trans = umap.UMAP(n_neighbors=j, min_dist=k, n_components=2, metric=i, random_state=41).fit(X_train)
+                    svc = SVC(gamma = 'auto').fit(trans.embedding_, y_train)
+                    test_embedding = trans.transform(X_test)
+                    print(svc.score(test_embedding, y_test))
+                    params.append([i, j, k, svc.score(test_embedding, y_test)])
+                    print(f'the metric used was: {i}, the n_neighbors: {j}, the min_distance: {k}')
+        data_frame = pd.DataFrame(params, columns = ['metric', 'nearest_neighbors', 'min_distance', 'score'])
+        data_frame.to_csv('hyper_params.txt',index=False)
+
+
     if kwargs["f"] == "a":
         unsup_one_table(tab_five.loc[:kwargs["amount"]].copy())
     elif kwargs["f"] == "b":
@@ -256,20 +325,42 @@ def main(**kwargs):
     elif kwargs["f"] == "c":
         two_to_one_df(tab_five.copy(),tab_six.copy())
     elif kwargs["f"] == "d":
-        supervised(tab_five.copy(),tab_six.copy()) #.loc[:kwargs["amount"]] .loc[:kwargs["amount"]]
+        supervised(tab_five.loc[:kwargs["amount"]].copy(),tab_six.loc[:kwargs["amount"]].copy()) #.loc[:kwargs["amount"]] .loc[:kwargs["amount"]]
+    elif kwargs["f"] == "e":
+        best_cols(tab_nine.copy())
+    elif kwargs["f"] == "f":
+        parameter_tuning(tab_five.loc[:kwargs["amount"]].copy(),tab_six.loc[:kwargs["amount"]].copy()) #.loc[:kwargs["amount"]] .loc[:kwargs["amount"]]
 
 if __name__ == '__main__':
     # optimal min_dis = 0.3, metric = yule, nn= 80
     parser = argparse.ArgumentParser(description = 'Unsupervised learning function')
-    parser.add_argument("--f", default="d", help="select which function to use")
-    parser.add_argument("--amount", default=100_000, help="select over how many rows you want to do the unsupervised learning")
-    parser.add_argument("--nn", default = 80,  help="select the amount of nn cells for the umap")
-    parser.add_argument("--min_dis", default = 0.3,  help="select the minimal distance for the umap")
-    parser.add_argument("--metric", default = "yule",  help="select which metric for the umap you want to compute")
+    parser.add_argument("--f", default="f", help="select which function to use")
+    parser.add_argument("--amount", default=10_000, help="select over how many rows you want to do the unsupervised learning")
+    parser.add_argument("--nn", default = 100,  help="select the amount of nn cells for the umap")
+    parser.add_argument("--min_dis", default = 0.5,  help="select the minimal distance for the umap")
+    parser.add_argument("--metric", default = "hamming",  help="select which metric for the umap you want to compute")
     args = parser.parse_args()
 
 main(**vars(args))
 
+# nn van 2 tot 200 (hoog) min_dist 0 tot 1 (hoog) ncomp = dimensions
+# metric = Euclidean, manhattan, chebyshev, minkowski. Canberra, braycurtis(slecht), haversine(2d), mahalanobis(werkt niet), wminkowski, seuclidean(slecht). cosine, correlation. 
+# Binary = hamming, jaccard, dice(y), russellrao, kulsinski, rogerstanimoto(y), sokalmichener(y), sokalsneath, yule(beste)
 
 
+
+# TESTTTTTTTTTTTTTTTTTTT DEL AFTER
+        # X = pd.get_dummies(df3)
+        # le = preprocessing.LabelEncoder()
+        # y = le.fit_transform(df3["RISV_Waarde"])
+        # X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.20, random_state = 40)
+
+        # tuning_parameters = [{'n_neighbors' : [2, 10, 20, 30, 40, 50, 75 , 100, 150],
+        #                       'min_dist' : [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9],
+        #                       'metric' : ['hamming', 'jaccard', 'dice', 'russellrao', 'kulsinski', 'rogerstanimoto', 'sokalmichener', 'sokalsneath', 'yule']
+        #                     }]
+        # clf = GridSearchCV(umap.UMAP(), tuning_parameters, cv=3, scoring='balanced_accuracy')
+        # clf.fit(X_train, y_train)
+        # print(clf.best_params_)
+        # exit()
 
