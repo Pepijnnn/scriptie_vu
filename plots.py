@@ -1,9 +1,13 @@
 import pandas as pd
 import numpy as np
-matplotlib.use("TkAgg")
-from matplotlib import pyplot as plt
 import pickle
 import time
+import umap
+
+import matplotlib
+matplotlib.use("TkAgg")
+from matplotlib import pyplot as plt
+
 from sklearn import preprocessing
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
@@ -11,11 +15,10 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.svm import SVC
 from sklearn.cluster import KMeans
 from sklearn.externals import joblib
-import umap
+
 
 
 class Plots():
-
 
     def cluster_info(self, umap_pickle, whole_df):
         """ Input is a umap and its dataframe.
@@ -24,27 +27,32 @@ class Plots():
             Output are the per cluster these most distinct attributes."""
         # load umap and make clusters
         model = joblib.load(umap_pickle)
-        df = whole_df.iloc[len(model[:, 0])]
+        # print(f'length df = {whole_df.info()}')
+        print(f'length model = {len(model[:, 0])}')
+        df = whole_df.iloc[:len(model[:, 0])]
+
         # TODO add cluster locations per row in df
         df['coordinates'] = list(zip(model[:, 0], model[:, 1]))
 
         # model = joblib.load("S5_metric=yule_nn=80_min_dis=0.3_amount=100000_AB_Resistentie.pkl")
         # plt.scatter(*model.embedding_.T, s=5, alpha=1.0)
 
-        # TODO check if we can just put the x and y coordinates in the model like this
-        print(f"Dit is the length van de nieuwe tabel: {len(df['coordinates'].to_numpy())} over {df['coordinates'].to_numpy()} ")
-        print(f'Dit is de echte length: {df.info()}')
-        estimator = KMeans(n_clusters=3).fit(df['coordinates'].to_numpy()) # model[:, 0],model[:, 1]
+        # train the K_means on the model coordinates
+        estimator = KMeans(n_clusters=3).fit(model) # model[:, 0],model[:, 1]
         cluster_dict_first = {i: np.where(estimator.labels_ == i)[0] for i in range(estimator.n_clusters)}
         print(f'Dit is de eerste cluster dict{cluster_dict_first}')
-
+        
         df_indices = dict()#{i: list(indices) for indices in dffor i in range(estimator.n_clusters)}
+
         for i in range(estimator.n_clusters):
             cluster_coords = cluster_dict_first.get(i)
             # make new dataframe from rows that have the coordinates from cluster_coords
-            sub_df = df[df['coordinates'].isin(cluster_coords)]
+            # print(f"Length van de series = {len(pd.Series(df['coordinates']))}, length van cluster coords = {len(cluster_coords)}")
+            sub_df = df.loc[df['coordinates'].isin(cluster_coords)]
             df_indices[i] = sub_df.index.values
-        print(f'Dit zijn de indices per cluster: {df_indices}')
+        # print(f'Dit zijn de indices per cluster: {df_indices}')
+        print(f'HIERDOORR %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
+
         # oneliner:
         # df_indices = {i: df[df['coordinates'].isin(cluster_dict_first.get(i))].index.values for i in range(estimator.n_clusters)}
 
@@ -59,30 +67,46 @@ class Plots():
         # split df into n_cluster amount of dataframes
         df_clusters = list()
         for key in cluster_dict.keys():
+        
             # TODO check if we can get the rows from the df with these coordinates
             # or do we need to put an index to the the dict for each point
             
             # presumed that the loc is a list of 
-            locs = [i for i,_ in cluster_dict.get(key)]
+            locs = [i for i in cluster_dict.get(key)[1]]
+            # print(cluster_dict.get(0))
+            # print(len(cluster_dict.get(0)[1]))
+            # print(len(locs))
+            # exit()
             new_df = df.loc[locs]
             df_clusters.append(new_df)
         
+        # print(f'dit zijn blijkbaar de clusters ofzo: {df_clusters}')
         most_frequent_item = dict()
         for index, cluster in enumerate(df_clusters):
             # TODO find new information about clusters
             most_freq_per_column = list()
             # add the item that is most frequent per column and put it in the dict
+            print(df_clusters[index], index)
+            # print(df_clusters[index].columns)
             for column in list(cluster):
-                most_freq_per_column.append(column.value_counts().idxmax())
+                most_freq_per_column.append(df_clusters[index][column].value_counts().idxmax())
             
             most_frequent_item[index] = most_freq_per_column
 
+        # print( cluster_dict.items())
+        # exit()
         # print the output if it goes fast else put in in a txt file (or both)
+        # print(most_freq_item)
+        print(type(most_frequent_item))
+        print(most_frequent_item)
+        print("&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&")
+        print(most_frequent_item[0])
+        exit()
         print(f"The most frequent items per dict are: \n {most_frequent_item} \
             the coordinates per clusters are: \n {cluster_dict} ")
         with open('cluster_dumps.txt', 'a') as filehandle:  
-            filebuffer = list(most_frequent_item, cluster_dict.items())
-            filehandle.writelines("%s\n" % line for line in lst for lst in filebuffer)
+            filebuffer = list(most_frequent_item) #, list(cluster_dict.items()))
+            filehandle.writelines("%s\n" % line for line in filebuffer) # in lst for lst
 
 
     def supervised(self, df3):
