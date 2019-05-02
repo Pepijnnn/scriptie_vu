@@ -1,0 +1,16 @@
+# Ignore all text files
+*.txt
+
+# Ignore all pkl files
+*.pkl
+**.pkl
+
+# Ignore folder
+__pycache__
+
+# Ignore other folder
+.vscode
+best_cols_params_txt_files
+pkl
+train_data
+
