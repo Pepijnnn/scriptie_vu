@@ -28,12 +28,6 @@ import seaborn as sns
 from tqdm import tqdm
 from plots import Plots
 
-#sel1_datatype = [["Monsternummer","StudieNummer","MateriaalShortName","WerkplekCode","BepalingCode","ArtsCode","AfdelingCodeAanvrager","Locatie","Waarde","Uitslag"],
-#["Monsternummer","IsolaatNummer","MicroOrganismeCode","AfnameDatum","ArtsCode","AfdelingCodeAanvrager","AfdelingNaamAanvrager","AfdelingKliniekPoliAanvrager","OrganisatieCodeAanvrager","OrganisatieNaamAanvrager","StudieNummer","MicroOrganismeOuder","MicroOrganismeOuderOuder","MicroBiologieProcedureCode","MicroOrganismeName","MicroOrganismeType","MicroOrganismeParentCode","MateriaalCode","Kingdom","PhylumDivisionGroup","Class","Order","Family","Genus","MateriaalDescription","MateriaalShortName","ExternCommentaar","TimeStamp"],
-#["Monsternummer","LabIndicator","AfnameDatum","BepalingsCode","IsolaatNummer","AntibioticaNaam","AB_Code","Methode","MIC_RuweWaarde","E_TestRuweWaarde","AgarDiffRuweWaarde","RISV_Waarde","TimeStamp"],
-#["VoorschriftId","Pseudo_id","OpnameID","Startmoment","Status_naam","Snelheid","Snelheidseenheid","Dosis","DosisEenheid","Toedieningsroute","MedicatieArtikelCode","MedicatieArtikelNaam","MedicatieArtikelATCcode","MedicatieArtikelATCnaam","FarmaceutischeKlasse","FarmaceutischeSubklasse","TherapeutischeKlasse","Werkplek_code","Werkplek_omschrijving","Bron"],
-#["Pseudo_id","Geslacht","Geboortedatum","Overlijdensdatum","IsOverleden","Land"]]  
-
 def main(**kwargs):
     print("importing csv's")
     # tab_one = pd.read_csv('../../offline_files/7 columns from mmi_Lab_MMI_Resistentie.txt', sep='\t', encoding="UTF-16")
@@ -44,10 +38,12 @@ def main(**kwargs):
     # tab_five = pd.read_csv('../../offline_files/mmi_Lab_MMI_Isolaten.txt', sep='\t', encoding="UTF-16", low_memory=False)  
     # tab_six = pd.read_csv('../../offline_files/mmi_Lab_MMI_Resistentie_5col.txt', sep='\t', encoding="UTF-16", low_memory=False)  
     # pandas_fields = ['MonsterNummer', 'IsolaatNummer', 'MicroOrganismeOuder', 'MateriaalDescription', 'AntibioticaNaam', 'RISV_Waarde']
-    # tab_seven = pd.read_csv('../../offline_files/pandas_merge.txt', sep='\t', encoding="Latin-1", header=None, names = pandas_fields)  
-    tab_eight = pd.read_csv('../../offline_files/15 columns from BepalingTekstMetIsolatenResistentie_tot_103062.txt', sep='\t', encoding="UTF-16", low_memory=False)  
+    # tab_seven = pd.read_csv('../../offline_files/15 columns from BepalingTekstMetIsolatenResistentie_1maart2018_1maart2019.txt', sep='\t', encoding="UTF-16")  
+    # tab_eight = pd.read_csv('../../offline_files/15 columns from BepalingTekstMetIsolatenResistentie_tot_103062.txt', sep='\t', encoding="UTF-16", low_memory=False)  
     # tab_nine = pd.read_csv('../../offline_files/12 columns from BepalingTekstMetIsolatenResistentie.txt', sep='\t', encoding="UTF-16", low_memory=False)  
-    print("done importing csv's")
+    tab_ten = pd.read_csv('../../offline_files/Datafile voor pepijn.txt', sep='\t', encoding="UTF-16", low_memory=False)  
+
+    print("done importing csv's") # Datafile voor pepijn
 
     def create_new_text(df, name):
         tfile = open('../../offline_files/{}.txt'.format(name), 'w+')
@@ -56,18 +52,22 @@ def main(**kwargs):
 
     # unsupervised learning over Isolaten table coloured with different microorganisms
     def unsup_one_table(short_table):
+
+        # print(short_table.info())
+        # exit()
         # sns.set(style='white', context='poster', rc={'figure.figsize':(14,10)})
         # select the columns you want to calculate
         # narrow_table = table[['AfnameDatum','MonsterNummer','IsolaatNummer','MicroOrganismeName', 'MateriaalCode', 'ArtsCode', 'AfdelingNaamAanvrager']]
-        # fill NaN's with most frequent string from that column
-        # for col in short_table.columns:
-        #     if col == "AfnameDatum" or col == "MonsterNummer" or col == "IsolaatNummer":
-        #         short_table[col].fillna(0, inplace=True)
-        #     else:
-        # load_pickle()
-        # exit()
+        # short_table.drop(['Pseudo_id','Monsternummer','IsolaatNummer','MicroOrganismeName','AfnameDatum','Genus'], axis=1, inplace=True)
+        short_table = short_table[['MIC_RuweWaarde','Genus','AfdelingNaamAanvrager','AntibioticaNaam','RISV_Waarde']].copy()
+        short_table.drop(short_table.loc[(short_table['RISV_Waarde']=='V') | (short_table['RISV_Waarde']=='I')].index, inplace=True)
+        # short_table.sort_values(by=['RISV_Waarde'], ascending=False, inplace=True)
+        # rest = short_table.RISV_Waarde.value_counts()['S'] - short_table.RISV_Waarde.value_counts()['R']
+        # short_table = short_table.iloc[rest:,]
+        # short_table.dropna(subset=['RISV_Waarde'], inplace=True)
         short_table.fillna("0", inplace=True)
-
+        # short_table.dropna(inplace=True)
+        
         focus_table = "RISV_Waarde"
 
         # delete most of the "MicroOrganismeName" table for visualisation
@@ -81,7 +81,7 @@ def main(**kwargs):
         label = le.fit_transform(short_table[focus_table])
         labels2 = le.fit(short_table[focus_table])
         le_name_map = dict(zip(labels2.transform(le.classes_),labels2.classes_))
-        short_table.drop([focus_table], axis=1)
+        short_table.drop([focus_table], axis=1, inplace=True)
         one_hot_table = pd.get_dummies(short_table)
         # one_hot_table = pd.get_dummies(short_table[['AfnameDatum','MonsterNummer','IsolaatNummer','AfdelingNaamAanvrager', 'MateriaalCode', 'ArtsCode']])
 
@@ -107,72 +107,57 @@ def main(**kwargs):
             print(short_table.shape)
 
         draw_umap(metric=kwargs["metric"], 
-            title=("Unsup_tab8_last_200_metric={}, nn={}, min_dis={}, amount={}"
-            .format(kwargs["metric"], kwargs["nn"], kwargs["min_dis"], kwargs["amount"])), 
+            title=("tab7'MIC_RuweWaarde','Genus',' AfdelingNaamAanvrager','AntibioticaNaam','RISV_Waarde'_metric={}, nn={}, min_dis={}, amount= All"
+            .format(kwargs["metric"], kwargs["nn"], kwargs["min_dis"])), 
             n_neighbors=kwargs["nn"], 
             min_dist=kwargs["min_dis"])        
 
-    # def load_pickle(pickl_name, colour_label, key_list, value_list):
-    def load_pickle():
-        # model = joblib.load(pickl_name)
-        model = joblib.load("S5_metric=yule_nn=80_min_dis=0.3_amount=100000_AB_Resistentie.pkl")
-        plt.scatter(*model.embedding_.T, s=5, alpha=1.0)
-        # cmap = cm.get_cmap('jet', str(pickl_name).split("_ ")[-2]) 
-        # scat = plt.scatter(*model.T, c=colour_label, s=5, cmap=cmap, alpha=1.0)
+    def ten(short_table):
+        print(short_table.info())
+        # subdf = short_table[['Geslacht','IsOverleden','Postcode']].fillna("0",inplace=True)
+        # dummies = pd.get_dummies(subdf) 
+        short_table.drop(['Geslacht','IsOverleden','Postcode'], axis=1, inplace=True)
+        for col in short_table.columns:
+            if short_table[col].isnull().sum() > int(0.995*len(short_table)):
+                # print("333", short_table[col].isnull().sum() > (0.995*len(short_table)))
+                short_table.drop([col], axis=1, inplace=True)
+            else:
+                short_table[col] = pd.to_numeric(short_table[col], errors='coerce')
+        print("3333333333", len(short_table.columns))
+        # one_hot_table = pd.concat([short_table,dummies], axis=1)
 
-        # cb = plt.colorbar(scat, spacing='uniform', ticks=key_list)
-        # cb.ax.set_yticklabels(value_list)
-
-        # plt.title(str(pickl_name).split("_ ")[:-2], fontsize=18)
-        plt.show()
-        # "S5_metric=yule_nn=80_min_dis=0.3_amount=100000_AB_Resistentie"
-
-    def best_cols(df, col_pred_amount):
-        """ input is a large dataframe which contains certain columns and a 'RISV_Waarde' column
-            output is .txt file consisting of 2+ columns with its prediction of the 'RISV_Waarde' column"""
-
-        # make the database 50/50 of R and S counts in the RISV_Waarde column
-        df.drop(df.loc[(df['RISV_Waarde']=='V') | (df['RISV_Waarde']=='I')].index, inplace=True)
-        df.sort_values(by=['RISV_Waarde'], ascending=False, inplace=True)
-        rest = df.RISV_Waarde.value_counts()['S'] - df.RISV_Waarde.value_counts()['R']
-        df = df.iloc[rest:,].copy()
-
-        for col in df.columns:
-            df[col].fillna("0", inplace=True)
-
-        # split the predicton column of the df and remove the biased columns
-        y = df['RISV_Waarde']
-        df.drop(['Monsternummer', 'IsolaatNummer', 'RISV_Waarde', 'Pseudo_id'], inplace=True, axis=1)
-
-        # split the column in col_pred_amount amount of tuples for each possible combination
-        df_col_combinations = list(itertools.combinations(list(df), col_pred_amount))
-
-        # test for each combination of columns how well they predict R or S
-        columns_score = []
-        for i in tqdm(range(len(df_col_combinations))):
-            col_1, col_2, col_3  = df_col_combinations[i]
-            X = pd.get_dummies(df[[col_1, col_2, col_3]])
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.20, random_state = 40)
-
-            trans = umap.UMAP(n_neighbors=kwargs["nn"], min_dist=kwargs["min_dis"], n_components=2, metric=kwargs["metric"], random_state=42).fit(X_train)
-            svc = SVC(gamma = 'auto').fit(trans.embedding_, y_train)
-            test_prediction = trans.transform(X_test)
-            print(df_col_combinations[i], svc.score(test_prediction, y_test))
-            
-            columns_score.append([str(col_1), str(col_2), str(col_3), svc.score(test_prediction, y_test)])
+        one_hot_table = short_table.fillna(0)
         
-        # write results to a .txt file
-        data_frame = pd.DataFrame(columns_score, columns = ['col_1', 'col_2', 'col_3', 'score'])
-        data_frame.to_csv(f'shuffled_best_cols_{kwargs["amount"]}.txt',index=False)
+        def draw_umap(n_neighbors=50, min_dist=0.5, n_components=2, metric='yule', title='Antibiotic Resistance'):
+            print("start umap")
+            start = time.time()
+            fit = umap.UMAP(n_neighbors=n_neighbors, min_dist=min_dist, n_components=n_components, metric=metric)
+            end = time.time()
+            print(f"umap completed in {end - start} seconds")        
+        
+            u = fit.fit_transform(one_hot_table)
+            print(f'transform completed in {time.time()-end} seconds')
+            
 
+            plt.scatter(u[:, 0], u[:, 1], s=0.4)
+            plt.title(title, fontsize=18)
+            plt.show()
+            joblib_file = f"tab10_columns ={short_table.columns}{len(one_hot_table)}.pkl"
+            joblib.dump(u, joblib_file)
+            print(short_table.shape)
+
+        draw_umap(metric=kwargs["metric"], title=f"tab10_metric={kwargs['metric']}, nn={kwargs['nn']}, min_dis={kwargs['min_dis']}, amount= ALL", n_neighbors=kwargs["nn"], min_dist=kwargs["min_dis"])  
+
+
+    p = Plots()
 
     # guide to the function you want to use
     if kwargs["f"] == "a":
-        unsup_one_table(tab_eight.iloc[-kwargs["amount"]:-1].copy())
-    # elif kwargs["f"] == "b":
-    #     combined_dataframe(tab_five.iloc[:kwargs["amount"]].copy(),tab_six.iloc[:kwargs["amount"]].copy())  
-    # elif kwargs["f"] == "c":
-    #     two_to_one_df(tab_five.copy(),tab_six.copy())
+        unsup_one_table(tab_seven.copy()) #.iloc[:kwargs["amount"]]
+    elif kwargs["f"] == "b":
+        ten(tab_ten[:kwargs["amount"]])
+    elif kwargs["f"] == "c":
+        p.cluster_info("tab10_metric=yule, nn=30, min_dis=0.05, amount= ALL_257735.pkl", tab_ten.copy())
     # elif kwargs["f"] == "d":
         # shuffled = tab_eight.sample(frac=1).reset_index(drop=True).copy()
         # supervised(tab_eight.iloc[:(kwargs["amount"])]) #tab_five.loc[:kwargs["amount"]].copy(),tab_six.loc[:kwargs["amount"]].copy()
@@ -187,10 +172,10 @@ def main(**kwargs):
 if __name__ == '__main__':
     # optimal min_dis = 0.15, metric = yule, nn= 6
     parser = argparse.ArgumentParser(description = 'Unsupervised learning function')
-    parser.add_argument("--f", default="a", help="select which function to use")
-    parser.add_argument("--amount", default=200_000, help="select over how many rows you want to do the unsupervised learning")
-    parser.add_argument("--nn", default=50,  help="select the amount of nn cells for the umap")
-    parser.add_argument("--min_dis", default=0.3,  help="select the minimal distance for the umap")
+    parser.add_argument("--f", default="b", help="select which function to use")
+    parser.add_argument("--amount", default=1_000, help="select over how many rows you want to do the unsupervised learning")
+    parser.add_argument("--nn", default=40,  help="select the amount of nn cells for the umap")
+    parser.add_argument("--min_dis", default=0.1,  help="select the minimal distance for the umap")
     parser.add_argument("--metric", default="yule",  help="select which metric for the umap you want to compute")
     parser.add_argument("-bestparam", action='store_true', help='calculates the best parameters for the current settings (can take hours)')
     parser.add_argument("--bestcols", help='calculates the best columns (you need to specify which number of columns) from the datafile using the current settings for the umap (can take hours)')
@@ -213,6 +198,21 @@ main(**vars(args))
 #     tab_nine = pd.read_csv('../../offline_files/12 columns from BepalingTekstMetIsolatenResistentie.txt', sep='\t', encoding="UTF-16", low_memory=False)  
 #     print("done importing csv's")
 
+
+ # # def load_pickle(pickl_name, colour_label, key_list, value_list):
+    # def load_pickle():
+    #     # model = joblib.load(pickl_name)
+    #     model = joblib.load("S5_metric=yule_nn=80_min_dis=0.3_amount=100000_AB_Resistentie.pkl")
+    #     plt.scatter(*model.embedding_.T, s=5, alpha=1.0)
+    #     # cmap = cm.get_cmap('jet', str(pickl_name).split("_ ")[-2]) 
+    #     # scat = plt.scatter(*model.T, c=colour_label, s=5, cmap=cmap, alpha=1.0)
+
+    #     # cb = plt.colorbar(scat, spacing='uniform', ticks=key_list)
+    #     # cb.ax.set_yticklabels(value_list)
+
+    #     # plt.title(str(pickl_name).split("_ ")[:-2], fontsize=18)
+    #     plt.show()
+    #     # "S5_metric=yule_nn=80_min_dis=0.3_amount=100000_AB_Resistentie"
 
 # TESTTTTTTTTTTTTTTTTTTT DEL AFTER
         # X = pd.get_dummies(df3)
@@ -277,3 +277,8 @@ main(**vars(args))
     #         plt.title(title, fontsize=18)
     #         plt.show()
     #         print(df3.shape)
+    #sel1_datatype = [["Monsternummer","StudieNummer","MateriaalShortName","WerkplekCode","BepalingCode","ArtsCode","AfdelingCodeAanvrager","Locatie","Waarde","Uitslag"],
+    #["Monsternummer","IsolaatNummer","MicroOrganismeCode","AfnameDatum","ArtsCode","AfdelingCodeAanvrager","AfdelingNaamAanvrager","AfdelingKliniekPoliAanvrager","OrganisatieCodeAanvrager","OrganisatieNaamAanvrager","StudieNummer","MicroOrganismeOuder","MicroOrganismeOuderOuder","MicroBiologieProcedureCode","MicroOrganismeName","MicroOrganismeType","MicroOrganismeParentCode","MateriaalCode","Kingdom","PhylumDivisionGroup","Class","Order","Family","Genus","MateriaalDescription","MateriaalShortName","ExternCommentaar","TimeStamp"],
+    #["Monsternummer","LabIndicator","AfnameDatum","BepalingsCode","IsolaatNummer","AntibioticaNaam","AB_Code","Methode","MIC_RuweWaarde","E_TestRuweWaarde","AgarDiffRuweWaarde","RISV_Waarde","TimeStamp"],
+    #["VoorschriftId","Pseudo_id","OpnameID","Startmoment","Status_naam","Snelheid","Snelheidseenheid","Dosis","DosisEenheid","Toedieningsroute","MedicatieArtikelCode","MedicatieArtikelNaam","MedicatieArtikelATCcode","MedicatieArtikelATCnaam","FarmaceutischeKlasse","FarmaceutischeSubklasse","TherapeutischeKlasse","Werkplek_code","Werkplek_omschrijving","Bron"],
+    #["Pseudo_id","Geslacht","Geboortedatum","Overlijdensdatum","IsOverleden","Land"]]  
