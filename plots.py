@@ -8,6 +8,11 @@ import umap
 import matplotlib
 matplotlib.use("TkAgg")
 from matplotlib import pyplot as plt
+import matplotlib.gridspec as gridspec
+import seaborn as sns
+import matplotlib.style as style
+sns.set_context('paper')
+style.use('seaborn-darkgrid')
 
 from sklearn import preprocessing
 from sklearn.model_selection import train_test_split
@@ -20,7 +25,7 @@ from sklearn.cluster import MeanShift
 from sklearn.externals import joblib
 from tqdm import tqdm
 
-
+import re
 
 class Plots():
 
@@ -33,16 +38,14 @@ class Plots():
         model = joblib.load(umap_pickle)
         print(f'length model = {len(model[:, 0])}')
         df = whole_df.iloc[:len(model[:, 0])]
-
+        
+        
+        # print(pd.to_numeric(df['Avg(MIC)'].str.replace(',', '.').astype(float)).describe())
         # add cluster locations per row in df
         df['coordinates'] = list(zip(model[:, 0], model[:, 1]))
 
-        # model = joblib.load("S5_metric=yule_nn=80_min_dis=0.3_amount=100000_AB_Resistentie.pkl")
-        # plt.scatter(*model.embedding_.T, s=5, alpha=1.0)
-
         # train the K_means on the model coordinates
-        # estimator = KMeans(n_clusters=2).fit(model) # model[:, 0],model[:, 1]
-        estimator = MeanShift().fit(model)
+        estimator = KMeans(n_clusters=3, random_state=0).fit(model) # model[:, 0],model[:, 1]
         print("Fitted")
         cluster_dict_first = {i: np.where(estimator.labels_ == i)[0] for i in range(estimator.n_clusters)}
         print(f'Dit is de eerste cluster dict{cluster_dict_first}')
@@ -69,7 +72,18 @@ class Plots():
             locs = [i for i in cluster_dict.get(key)]
             new_df = df.loc[locs]
             df_clusters.append(new_df)
-        
+            # print(pd.to_numeric(new_df['Avg(MIC)'].str.replace(',', '.').astype(float)).describe())
+            print(f"#################################### CLUSTER {key}  ##########################################################################################")
+            for column in new_df.columns:
+                print(column, len(new_df[column].dropna()))
+                # print(new_df[column].dropna())
+                try:
+                    print(pd.to_numeric(new_df[column].dropna().str.replace(',', '.').astype(float)).describe())
+                except AttributeError:
+                    print(pd.to_numeric(new_df[column].dropna().replace(',', '.').astype(float)).describe())
+                except ValueError:
+                    print(new_df[column].dropna().describe())
+
         # per cluster make a list which item is most prevalent per column
         most_frequent_item = dict()
         for index, cluster in tqdm(enumerate(df_clusters)):
@@ -85,24 +99,24 @@ class Plots():
                 if column == "coordinates":
                     most_freq_per_column.append("NVT")
                     continue
+                # if for some reason there is no idxmax we put a 0 there
                 try:
-                    most_freq_per_column.append(df_clusters[index][column].value_counts().idxmax())
+                    most_freq_per_column.append(df_clusters[index][column].value_counts().mean())
                 except ValueError:
                     most_freq_per_column.append(0)
 
             most_frequent_item[index] = most_freq_per_column
 
-
         print(f"The most frequent items per dict are: \n {most_frequent_item} \
             the coordinates per clusters are: \n {cluster_dict} ")
-        # write the information per cluster to a file aswell as which points belong to which clusters
-        with open('cluster_dumps.txt', 'a') as filehandle:
-            print("################## SPLIT START ####################", file=filehandle)
-            print(umap_pickle)
-            print(most_frequent_item, file=filehandle)
-            print(cluster_dict, file=filehandle)
-            print(df['coordinates'].values, file=filehandle)
-            print("################## SPLIT END ####################", file=filehandle)
+        # # write the information per cluster to a file aswell as which points belong to which clusters
+        # with open('cluster_dumps.txt', 'a') as filehandle:
+        #     print("################## SPLIT START ####################", file=filehandle)
+        #     # print(umap_pickle)
+        #     print(most_frequent_item, file=filehandle)
+        #     print(cluster_dict, file=filehandle)
+        #     print(df['coordinates'].values, file=filehandle)
+        #     print("################## SPLIT END ####################", file=filehandle)
 
         # show a nice plot of the clusters so we can see which rows belong to which clusters
         colormap = np.zeros(len(model[:, 0]))
@@ -110,9 +124,85 @@ class Plots():
             for value in cluster_dict[key]:
                 colormap[value] = key
         
-        plt.scatter(model[:, 0], model[:, 1], s=1, c=colormap, cmap='Set1')
+        # plt.scatter(model[:, 0], model[:, 1], s=1, c=colormap, cmap='Set1')
+        # ax = sns.scatterplot(x=model[:, 0], y=model[:, 1], s=6, palette=("Spectral"))
+        # ax.set_title('K-Mean Clusters')
+        
+        df['Avg(MIC)'].fillna(0, inplace=True)
+        df.loc[:, 'Avg(MIC)'] = pd.to_numeric(df['Avg(MIC)'].apply(lambda x: re.sub(',', '.', str(x))))
+
+        def custom_round(x, base=5):
+            return int(base * round(float(x)/base))
+        def round_down(x):
+            if int(x) > 47:
+                return 48
+            else:
+                return x
+        
+        df.loc[:, 'Avg(MIC)'] = df['Avg(MIC)'].apply(lambda x: custom_round(x, base=2))
+        df.loc[:, 'Avg(MIC)'] = df['Avg(MIC)'].apply(lambda x: round_down(x))
+        # print(df['Avg(MIC)'].value_counts())
+        # exit()
+        ax = sns.scatterplot(data=df,x=model[:, 0], y=model[:, 1], s=6, hue="Avg(MIC)", legend="full")
+        ax.set_title('Umap patient clusters coloured to Avg MIC value')
         plt.show()
 
+    def umap_over_kmeansclusters(self, umap_pickle, whole_df):
+        """ Input is a umap and its dataframe.
+            - First it searches an amount of clusters with Kmeans clustering.
+            - Then it makes again a umap over these subclusters and visualises it, and does k-means again.
+            Output are for a subcluster the most prominant features."""
+        # load umap and make clusters
+        model = joblib.load(umap_pickle)
+        print(f'length model = {len(model[:, 0])}')
+        df = whole_df.iloc[:len(model[:, 0])]
+
+        # add cluster locations per row in df
+        df['coordinates'] = list(zip(model[:, 0], model[:, 1]))
+
+        # train the K_means on the model coordinates
+        estimator = KMeans(n_clusters=3, random_state=0).fit(model) # model[:, 0],model[:, 1]
+
+        plt.subplot(321)
+        plt.scatter(model[:, 0], model[:, 1], s=1)
+        print("Fitted")
+        cluster_dict_first = {i: np.where(estimator.labels_ == i)[0] for i in range(estimator.n_clusters)}
+        
+        df_indices = dict()#{i: list(indices) for indices in df for i in range(estimator.n_clusters)}
+        for i in range(estimator.n_clusters):
+            cluster_coords = cluster_dict_first.get(i)
+            # make new dataframe from rows that have the coordinates from cluster_coords
+            sub_df = df.loc[df['coordinates'].isin(cluster_coords)]
+            df_indices[i] = sub_df.index.values
+
+        # add the indices per cluster to the dict
+        cluster_dict = {i: (df_indices.get(i), np.where(estimator.labels_ == i)[0])[1] for i in range(estimator.n_clusters)}
+
+        # split df into n_cluster amount of dataframes
+        df_clusters = list()
+        for key in cluster_dict.keys():
+            locs = [i for i in cluster_dict.get(key)]
+            new_df = df.loc[locs]
+            df_clusters.append(new_df)
+
+        for key, _ in enumerate(df_clusters):
+            focus_cluster = df_clusters[key]
+            focus_cluster.drop(['Geslacht','IsOverleden','Postcode'], axis=1, inplace=True)
+            for col in focus_cluster.columns:
+                if focus_cluster[col].isnull().sum() > int(0.995*len(focus_cluster)):
+                    # print("333", focus_cluster[col].isnull().sum() > (0.995*len(focus_cluster)))
+                    focus_cluster.drop([col], axis=1, inplace=True)
+                else:
+                    focus_cluster[col] = pd.to_numeric(focus_cluster[col], errors='coerce')
+            focus_cluster.fillna(0, inplace=True)
+            u = umap.UMAP(metric="correlation", n_neighbors=30, n_components=2, min_dist=0.0, random_state=42).fit_transform(focus_cluster)
+            plt.subplot(322)
+            plt.scatter(u[:, 0], u[:, 1], s=1)
+            print(f"cluster {key} done")
+
+        plt.title("Subumap from the first subcluster from the patient only dataframe, 50k", fontsize=18)
+        plt.show()
+        
 
     def supervised(self, df3):
         # print(len(set(df3["MIC_RuweWaarde"].values)))
@@ -200,9 +290,6 @@ class Plots():
             # for printing the plots to see how well the train or the test proces went
             # mapper = umap.UMAP(metric=kwargs["metric"], n_neighbors=kwargs["nn"], n_components=2, min_dist=kwargs["min_dis"]).fit(X_train, y=train_label)
             # test_embedding = mapper.transform(X_test)
-
-            # joblib_file = str(title) + "_{}_".format(len(list(test_le_name_map.keys()))) + ".pkl"
-            # joblib.dump(test_embedding, joblib_file)
             
             # # load from file
             # model = joblib.load(joblib_file)

@@ -1,5 +1,5 @@
 import pandas as pd
-import matplotlib
+
 from sklearn.utils import shuffle
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import cross_val_score
@@ -17,6 +17,7 @@ from sklearn.externals import joblib
 from sklearn.svm import SVC
 import numpy as np
 import math
+import matplotlib
 matplotlib.use("TkAgg")
 from matplotlib import pyplot as plt
 import argparse
@@ -26,6 +27,7 @@ import umap
 from pylab import cm
 import seaborn as sns
 from tqdm import tqdm
+import re
 from plots import Plots
 
 def main(**kwargs):
@@ -114,21 +116,34 @@ def main(**kwargs):
 
     def ten(short_table):
         print(short_table.info())
+        # for col in short_table.columns:
+        #     short_table.loc[:, col] = short_table.loc[:, col] / short_table.loc[:, col].max()
+        #     print(col)
         # subdf = short_table[['Geslacht','IsOverleden','Postcode']].fillna("0",inplace=True)
         # dummies = pd.get_dummies(subdf) 
-        short_table.drop(['Geslacht','IsOverleden','Postcode'], axis=1, inplace=True)
+        short_table.drop(['Pseudo_id','Geslacht','IsOverleden','Postcode'], axis=1, inplace=True)
+        short_table.fillna("0", inplace=True)
         for col in short_table.columns:
             if short_table[col].isnull().sum() > int(0.995*len(short_table)):
                 # print("333", short_table[col].isnull().sum() > (0.995*len(short_table)))
                 short_table.drop([col], axis=1, inplace=True)
             else:
-                short_table[col] = pd.to_numeric(short_table[col], errors='coerce')
-        print("3333333333", len(short_table.columns))
-        # one_hot_table = pd.concat([short_table,dummies], axis=1)
-
-        one_hot_table = short_table.fillna(0)
+                # make it from string to numerical
+                short_table.loc[:, col] = pd.to_numeric(short_table[col].apply(lambda x: re.sub(',', '.', str(x))))
+                # normalize the columns
+                # short_table.loc[:, col] = short_table.loc[:, col] / short_table.loc[:, col].max()  
+                
+            #   short_table[col] = pd.to_numeric(short_table[col], errors='coerce')
+                # .apply(lambda x: re.sub(',', '.', str(x))
         
-        def draw_umap(n_neighbors=50, min_dist=0.5, n_components=2, metric='yule', title='Antibiotic Resistance'):
+        print("3333333333", len(short_table.columns))
+        # print(type(short_table["Avg(MIC)"].iloc[0]))
+        # print(short_table['Avg(MIC)'].head())
+
+
+        one_hot_table = short_table
+        
+        def draw_umap(n_neighbors=30, min_dist=0.5, n_components=2, metric='yule', title='Antibiotic Res Research'):
             print("start umap")
             start = time.time()
             fit = umap.UMAP(n_neighbors=n_neighbors, min_dist=min_dist, n_components=n_components, metric=metric)
@@ -139,14 +154,23 @@ def main(**kwargs):
             print(f'transform completed in {time.time()-end} seconds')
             
 
-            plt.scatter(u[:, 0], u[:, 1], s=0.4)
-            plt.title(title, fontsize=18)
+            # plt.scatter(u[:, 0], u[:, 1], s=4)
+            ax = sns.scatterplot(data=short_table,x=u[:, 0], y=u[:, 1], s=3)
+            ax.set_title(title)
+            # plt.title(title, fontsize=18)
             plt.show()
-            joblib_file = f"tab10_columns ={short_table.columns}{len(one_hot_table)}.pkl"
+            joblib_file = str(f"tab10_columns_all = {len(short_table.columns)} tab10_length= {len(one_hot_table)} metric = {kwargs['metric']}.pkl")
             joblib.dump(u, joblib_file)
+            with open('tab_file_column_info.txt', 'a') as filehandle:
+                print("################## SPLIT START ####################", file=filehandle)
+                print(title, file=filehandle)
+                print(joblib_file, file=filehandle)
+                print(short_table.columns, file=filehandle)
+                print("################## SPLIT END ####################", file=filehandle)
+                
             print(short_table.shape)
 
-        draw_umap(metric=kwargs["metric"], title=f"tab10_metric={kwargs['metric']}, nn={kwargs['nn']}, min_dis={kwargs['min_dis']}, amount= ALL", n_neighbors=kwargs["nn"], min_dist=kwargs["min_dis"])  
+        draw_umap(metric=kwargs["metric"], title=f"tab10_metric={kwargs['metric']}, nn={kwargs['nn']}, min_dis={kwargs['min_dis']}, amount= {len(short_table)}", n_neighbors=kwargs["nn"], min_dist=kwargs["min_dis"])  
 
 
     p = Plots()
@@ -155,12 +179,11 @@ def main(**kwargs):
     if kwargs["f"] == "a":
         unsup_one_table(tab_seven.copy()) #.iloc[:kwargs["amount"]]
     elif kwargs["f"] == "b":
-        ten(tab_ten[:kwargs["amount"]])
+        ten(tab_ten) #.iloc[:kwargs["amount"]]
     elif kwargs["f"] == "c":
-        p.cluster_info("tab10_metric=yule, nn=30, min_dis=0.05, amount= ALL_257735.pkl", tab_ten.copy())
-    # elif kwargs["f"] == "d":
-        # shuffled = tab_eight.sample(frac=1).reset_index(drop=True).copy()
-        # supervised(tab_eight.iloc[:(kwargs["amount"])]) #tab_five.loc[:kwargs["amount"]].copy(),tab_six.loc[:kwargs["amount"]].copy()
+        p.cluster_info("tab10_columns = 31 tab10_length= 50000 metric = cosine.pkl", tab_ten[:50_000].copy())
+    elif kwargs["f"] == "d":
+        p.umap_over_kmeansclusters("tab10_columns = 31 tab10_length= 50000 metric = cosine.pkl", tab_ten[:50_000].copy())
     elif kwargs["f"] == "e":
         shuffled = tab_nine.sample(frac=1).reset_index(drop=True).copy()
         best_cols(shuffled.iloc[:(kwargs["amount"])], 3)
@@ -174,9 +197,9 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description = 'Unsupervised learning function')
     parser.add_argument("--f", default="b", help="select which function to use")
     parser.add_argument("--amount", default=1_000, help="select over how many rows you want to do the unsupervised learning")
-    parser.add_argument("--nn", default=40,  help="select the amount of nn cells for the umap")
+    parser.add_argument("--nn", default=70,  help="select the amount of nn cells for the umap")
     parser.add_argument("--min_dis", default=0.1,  help="select the minimal distance for the umap")
-    parser.add_argument("--metric", default="yule",  help="select which metric for the umap you want to compute")
+    parser.add_argument("--metric", default="cosine",  help="select which metric for the umap you want to compute")
     parser.add_argument("-bestparam", action='store_true', help='calculates the best parameters for the current settings (can take hours)')
     parser.add_argument("--bestcols", help='calculates the best columns (you need to specify which number of columns) from the datafile using the current settings for the umap (can take hours)')
     args = parser.parse_args()
