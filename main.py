@@ -45,7 +45,7 @@ def main(**kwargs):
     # pandas_fields = ['MonsterNummer', 'IsolaatNummer', 'MicroOrganismeOuder', 'MateriaalDescription', 'AntibioticaNaam', 'RISV_Waarde']
     # tab_seven = pd.read_csv('../../offline_files/15 columns from BepalingTekstMetIsolatenResistentie_1maart2018_1maart2019.txt', sep='\t', encoding="UTF-16")  
     # tab_eight = pd.read_csv('../../offline_files/15 columns from BepalingTekstMetIsolatenResistentie_tot_103062.txt', sep='\t', encoding="UTF-16", low_memory=False)  
-    # tab_nine = pd.read_csv('../../offline_files/12 columns from BepalingTekstMetIsolatenResistentie.txt', sep='\t', encoding="UTF-16", low_memory=False)  
+    tab_nine = pd.read_csv('../../offline_files/12 columns from BepalingTekstMetIsolatenResistentie.txt', sep='\t', encoding="UTF-16", low_memory=False)  
     tab_ten = pd.read_csv('../../offline_files/Datafile voor pepijn.txt', sep='\t', encoding="UTF-16", low_memory=False)  
 
     print("done importing csv's") # Datafile voor pepijn
@@ -186,7 +186,7 @@ def main(**kwargs):
     elif kwargs["f"] == "cumap":
         u.create_tab_ten(tab_ten)
     elif kwargs["f"] == "cmdinfo":
-        umap_pickle_name, whole_df = "tab10_columns_all = 40 tab10_length= 257735 metric = euclidean.pkl", tab_ten
+        umap_pickle_name, whole_df = "tab10_columns_all = 40 tab10_length= 257735 metric = euclidean.pkl", tab_nine
         c.cluster_info(umap_pickle_name, whole_df, kwargs['kmclusters'])
     elif kwargs["f"] == "sp":
         # p.cluster_info("tab10_columns_all = 40 tab10_length= 257735 metric = cosine.pkl", tab_ten.copy())
