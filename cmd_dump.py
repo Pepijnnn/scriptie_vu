@@ -6,7 +6,7 @@ from sklearn.cluster import KMeans
 
 class CMD_info():
 
-    def cluster_info(self, umap_pickle, whole_df):
+    def cluster_info(self, umap_pickle, whole_df, n_clusters=7):
         """ Input is a umap and its dataframe.
             - First it searches an amount of clusters with Kmeans clustering.
             - Then it searces for each cluster what the most prominent attributes are.
@@ -20,7 +20,7 @@ class CMD_info():
         df['coordinates'] = list(zip(model[:, 0], model[:, 1]))
 
         # train the K_means on the model coordinates
-        estimator = KMeans(n_clusters=3, random_state=0).fit(model) # model[:, 0],model[:, 1]
+        estimator = KMeans(n_clusters=n_clusters, random_state=0).fit(model) # model[:, 0],model[:, 1]
         print("Fitted")
         cluster_dict_first = {i: np.where(estimator.labels_ == i)[0] for i in range(estimator.n_clusters)}
         print(f'Dit is de eerste cluster dict{cluster_dict_first}')
@@ -54,3 +54,4 @@ class CMD_info():
                     print(pd.to_numeric(new_df[column].dropna().replace(',', '.').astype(float)).describe())
                 except ValueError:
                     print(new_df[column].dropna().describe())
+                 

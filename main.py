@@ -28,8 +28,10 @@ from pylab import cm
 import seaborn as sns
 from tqdm import tqdm
 import re
+
 from plots import Plots
 from cmd_dump import CMD_info
+from umap_creator import Umaps
 
 def main(**kwargs):
     print("importing csv's")
@@ -176,18 +178,24 @@ def main(**kwargs):
 
     p = Plots()
     c = CMD_info()
+    u = Umaps()
 
     # guide to the function you want to use
     if kwargs["f"] == "a":
         unsup_one_table(tab_seven.copy()) #.iloc[:kwargs["amount"]]
-    elif kwargs["f"] == "b":
-        ten(tab_ten) #.iloc[:kwargs["amount"]]
-    elif kwargs["f"] == "c":
-        # p.cluster_info("tab10_columns = 31 tab10_length= 50000 metric = cosine.pkl", tab_ten[:50_000].copy())
+    elif kwargs["f"] == "cumap":
+        u.create_tab_ten(tab_ten)
+    elif kwargs["f"] == "cmdinfo":
+        umap_pickle_name, whole_df = "tab10_columns_all = 40 tab10_length= 257735 metric = euclidean.pkl", tab_ten
+        c.cluster_info(umap_pickle_name, whole_df, kwargs['kmclusters'])
+    elif kwargs["f"] == "sp":
         # p.cluster_info("tab10_columns_all = 40 tab10_length= 257735 metric = cosine.pkl", tab_ten.copy())
-        p.simple_pickle_viewer("tab10_columns_all = 29 tab10_length= 257735 metric = correlation.pkl", tab_ten.copy())
+        p.simple_pickle_viewer("tab10_columns_all = 40 tab10_length= 257735 metric = euclidean.pkl", tab_ten.copy())
+    elif kwargs["f"] == "sk":
+        p.simple_kmeans("tab10_columns_all = 40 tab10_length= 257735 metric = euclidean.pkl", kwargs['kmclusters'])
     elif kwargs["f"] == "d":
-        p.umap_over_kmeansclusters("tab10_columns = 31 tab10_length= 50000 metric = cosine.pkl", tab_ten[:50_000].copy())
+        p.umap_over_kmeansclusters("tab10_columns_all = 40 tab10_length= 257735 metric = euclidean.pkl", tab_ten.copy())
+        # p.umap_over_kmeansclusters("tab10_columns = 31 tab10_length= 50000 metric = cosine.pkl", tab_ten[:50_000].copy())
     elif kwargs["f"] == "e":
         shuffled = tab_nine.sample(frac=1).reset_index(drop=True).copy()
         best_cols(shuffled.iloc[:(kwargs["amount"])], 3)
@@ -199,11 +207,12 @@ def main(**kwargs):
 if __name__ == '__main__':
     # optimal min_dis = 0.15, metric = yule, nn= 6
     parser = argparse.ArgumentParser(description = 'Unsupervised learning function')
-    parser.add_argument("--f", default="c", help="select which function to use")
+    parser.add_argument("--f", default="cmdinfo", help="select which function to use")
     parser.add_argument("--amount", default=400_000, help="select over how many rows you want to do the unsupervised learning")
     parser.add_argument("--nn", default=70,  help="select the amount of nn cells for the umap")
     parser.add_argument("--min_dis", default=0.1,  help="select the minimal distance for the umap")
     parser.add_argument("--metric", default="euclidean",  help="select which metric for the umap you want to compute")
+    parser.add_argument("--kmclusters", default=8, help="select how many clusters you want to look over")
     parser.add_argument("-bestparam", action='store_true', help='calculates the best parameters for the current settings (can take hours)')
     parser.add_argument("--bestcols", help='calculates the best columns (you need to specify which number of columns) from the datafile using the current settings for the umap (can take hours)')
     args = parser.parse_args()

@@ -37,12 +37,42 @@ class Plots():
         model = joblib.load(umap_pickle)
         df = whole_df.iloc[:len(model[:, 0])]
         # df['coordinates'] = list(zip(model[:, 0], model[:, 1]))
+        # change the 'Avg(MIC)' column to floats
+        df['Avg(MIC)'].fillna(0, inplace=True)
+        df.loc[:, 'Avg(MIC)'] = pd.to_numeric(df['Avg(MIC)'].apply(lambda x: re.sub(',', '.', str(x))))
 
-        ax = sns.scatterplot(data=df,x=model[:, 0], y=model[:, 1], s=20) # , hue="Avg(MIC)", legend="full"
+        # lambdafunction to round to nearest 5
+        def custom_round(x, base=5):
+            return int(base * round(float(x)/base))
+
+        # lambdafunction to discard extra high MIC values
+        def round_down(x):
+            return 48 if int(x) > 47 else x
+        
+        # apply the above functions
+        df.loc[:, 'Avg(MIC)'] = df['Avg(MIC)'].apply(lambda x: custom_round(x, base=2))
+        df.loc[:, 'Avg(MIC)'] = df['Avg(MIC)'].apply(lambda x: round_down(x))
+        
+        # cmap = sns.diverging_palette(10, 220, sep=80, n=7)
+        ax = sns.scatterplot(data=df,x=model[:, 0], y=model[:, 1], s=1, hue="Avg(MIC)", legend="full", palette='Spectral', linewidth=0) # , hue="Avg(MIC)", legend="full"
+
         ax.set_title('Umap patient clusters coloured to Avg MIC value')
         plt.show()
 
-    def cluster_info(self, umap_pickle, whole_df):
+    def simple_kmeans(self, umap_pickle, n_clusters=7):
+        """ Input is a pickle of coordinates in ndarray made by umap and the # of clusters
+            Output is the points clustered by Kmeans"""
+
+        # load umap and make clusters
+        model = joblib.load(umap_pickle)
+
+        # train the K_means on the model coordinates
+        estimator = KMeans(n_clusters=n_clusters, random_state=0).fit(model)
+        
+        plt.scatter(model[:, 0], model[:, 1], s=1, c=estimator.labels_.astype(float), cmap='Spectral')
+        plt.show()
+
+    def cluster_info_txt(self, umap_pickle, whole_df):
         """ Input is a umap and its dataframe.
             - First it searches an amount of clusters with Kmeans clustering.
             - Then it searces for each cluster what the most prominent attributes are.
@@ -110,6 +140,8 @@ class Plots():
             print("################## SPLIT START ####################", file=filehandle)
             print(most_frequent_item, file=filehandle)
             print(cluster_dict, file=filehandle)
+            # for key in cluster_dict:
+            #     print(f'Cluster {key} has coordinates {df['coordinates'].iloc[cluster_dict.get(key)[0]]}')
             print(df['coordinates'].values, file=filehandle)
             print("################## SPLIT END ####################", file=filehandle)
         
@@ -150,13 +182,15 @@ class Plots():
 
         # train the K_means on the model coordinates
         estimator = KMeans(n_clusters=6, random_state=0).fit(model)
-
+        
         plt.subplot(321)
-        plt.scatter(model[:, 0], model[:, 1], s=1)
+        plt.scatter(model[:, 0], model[:, 1], s=1, c=estimator.labels_.astype(float), cmap='Spectral')
         
         # create a dict where keys are clusters and values are the coordinates of all its points
         cluster_dict_first = {i: np.where(estimator.labels_ == i)[0] for i in range(estimator.n_clusters)}
         
+
+
         # create a dict where keys are clusters and values are the subdataframes of each cluster
         df_indices = dict()
         for i in range(estimator.n_clusters):
