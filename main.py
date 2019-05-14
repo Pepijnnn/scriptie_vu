@@ -44,9 +44,15 @@ def main(**kwargs):
     # tab_six = pd.read_csv('../../offline_files/mmi_Lab_MMI_Resistentie_5col.txt', sep='\t', encoding="UTF-16", low_memory=False)  
     # pandas_fields = ['MonsterNummer', 'IsolaatNummer', 'MicroOrganismeOuder', 'MateriaalDescription', 'AntibioticaNaam', 'RISV_Waarde']
     # tab_seven = pd.read_csv('../../offline_files/15 columns from BepalingTekstMetIsolatenResistentie_1maart2018_1maart2019.txt', sep='\t', encoding="UTF-16")  
-    # tab_eight = pd.read_csv('../../offline_files/15 columns from BepalingTekstMetIsolatenResistentie_tot_103062.txt', sep='\t', encoding="UTF-16", low_memory=False)  
-    tab_nine = pd.read_csv('../../offline_files/12 columns from BepalingTekstMetIsolatenResistentie.txt', sep='\t', encoding="UTF-16", low_memory=False)  
-    tab_ten = pd.read_csv('../../offline_files/Datafile voor pepijn.txt', sep='\t', encoding="UTF-16", low_memory=False)  
+    tab_eight = pd.read_csv('../../offline_files/15 columns from BepalingTekstMetIsolatenResistentie_tot_103062.txt', sep='\t', encoding="UTF-16", low_memory=False)  
+    # tab_nine = pd.read_csv('../../offline_files/12 columns from BepalingTekstMetIsolatenResistentie.txt', sep='\t', encoding="UTF-16", low_memory=False)  
+    # tab_ten = pd.read_csv('../../offline_files/Datafile voor pepijn.txt', sep='\t', encoding="UTF-16", low_memory=False)  
+    # per_patient_problemlist = pd.read_csv('../../offline_files/per_patient_full_6 columns from mmi_Problemlist.txt', sep='\t', encoding="UTF-16", low_memory=False)  
+    # per_patient_isolaten = pd.read_csv('../../offline_files/per_patient_full_10 columns from mmi_Lab_MMI_Isolaten.txt', sep='\t', encoding="UTF-16", low_memory=False)  
+    # per_patient_meddiag = pd.read_csv('../../offline_files/per_patient_full_10 columns from mmi_MedischeDiagnose.txt', sep='\t', encoding="UTF-16", low_memory=False)  
+    # per_patient_opname = pd.read_csv('../../offline_files/per_patient_full_15 columns from mmi_Opname_Opname.txt', sep='\t', encoding="UTF-16", low_memory=False)  
+    # per_patient_opname_p_b = pd.read_csv('../../offline_files/per_patient_full_28 columns from mmi_Opname_Opnameperiode_PerBed.txt', sep='\t', encoding="UTF-16", low_memory=False)  
+    kweken_ab_opnames_01 = pd.read_csv('../../offline_files/kweken_ab_opnames_0.1.txt', sep='\t', encoding="UTF-16", low_memory=False)  
 
     print("done importing csv's") # Datafile voor pepijn
 
@@ -118,12 +124,6 @@ def main(**kwargs):
             min_dist=kwargs["min_dis"])        
 
     def ten(short_table):
-        print(short_table.info())
-        # for col in short_table.columns:
-        #     short_table.loc[:, col] = short_table.loc[:, col] / short_table.loc[:, col].max()
-        #     print(col)
-        # subdf = short_table[['Geslacht','IsOverleden','Postcode']].fillna("0",inplace=True)
-        # dummies = pd.get_dummies(subdf) 
         short_table.drop(['Pseudo_id','Geslacht','IsOverleden','Postcode'], axis=1, inplace=True)
         short_table.fillna("0", inplace=True)
         for col in short_table.columns:
@@ -138,12 +138,7 @@ def main(**kwargs):
                 
             #   short_table[col] = pd.to_numeric(short_table[col], errors='coerce')
                 # .apply(lambda x: re.sub(',', '.', str(x))
-        
-        print("3333333333", len(short_table.columns))
-        # print(type(short_table["Avg(MIC)"].iloc[0]))
-        # print(short_table['Avg(MIC)'].head())
-
-
+    
         one_hot_table = short_table
         
         def draw_umap(n_neighbors=30, min_dist=0.5, n_components=2, metric='yule', title='Antibiotic Res Research'):
@@ -182,12 +177,14 @@ def main(**kwargs):
 
     # guide to the function you want to use
     if kwargs["f"] == "a":
-        unsup_one_table(tab_seven.copy()) #.iloc[:kwargs["amount"]]
+        ten(per_patient_problemlist.copy()) #.iloc[:kwargs["amount"]]
+    elif kwargs["f"] == "cnumap":
+        u.create_umap_kweken_ab_opname(kweken_ab_opnames_01)
     elif kwargs["f"] == "cumap":
-        u.create_tab_ten(tab_ten)
+        u.create_umap_per_department(tab_eight.iloc[:kwargs["amount"]])
     elif kwargs["f"] == "cmdinfo":
-        umap_pickle_name, whole_df = "tab10_columns_all = 40 tab10_length= 257735 metric = euclidean.pkl", tab_nine
-        c.cluster_info(umap_pickle_name, whole_df, kwargs['kmclusters'])
+        umap_pickle_name, whole_df = "tab10_columns_all = 40 tab10_length= 257735 metric = euclidean.pkl", per_patient_problemlist
+        c.cluster_info(umap_pickle_name, whole_df, kwargs['kmclusters']) # per_patient_isolaten, per_patient_meddiag, per_patient_opname, per_patient_opname_p_b
     elif kwargs["f"] == "sp":
         # p.cluster_info("tab10_columns_all = 40 tab10_length= 257735 metric = cosine.pkl", tab_ten.copy())
         p.simple_pickle_viewer("tab10_columns_all = 40 tab10_length= 257735 metric = euclidean.pkl", tab_ten.copy())
@@ -207,11 +204,11 @@ def main(**kwargs):
 if __name__ == '__main__':
     # optimal min_dis = 0.15, metric = yule, nn= 6
     parser = argparse.ArgumentParser(description = 'Unsupervised learning function')
-    parser.add_argument("--f", default="cmdinfo", help="select which function to use")
+    parser.add_argument("--f", default="cnumap", help="select which function to use")
     parser.add_argument("--amount", default=400_000, help="select over how many rows you want to do the unsupervised learning")
-    parser.add_argument("--nn", default=70,  help="select the amount of nn cells for the umap")
-    parser.add_argument("--min_dis", default=0.1,  help="select the minimal distance for the umap")
-    parser.add_argument("--metric", default="euclidean",  help="select which metric for the umap you want to compute")
+    parser.add_argument("--nn", default=25,  help="select the amount of nn cells for the umap")
+    parser.add_argument("--min_dis", default=0.0,  help="select the minimal distance for the umap")
+    parser.add_argument("--metric", default="yule",  help="select which metric for the umap you want to compute")
     parser.add_argument("--kmclusters", default=8, help="select how many clusters you want to look over")
     parser.add_argument("-bestparam", action='store_true', help='calculates the best parameters for the current settings (can take hours)')
     parser.add_argument("--bestcols", help='calculates the best columns (you need to specify which number of columns) from the datafile using the current settings for the umap (can take hours)')

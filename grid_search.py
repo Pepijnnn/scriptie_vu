@@ -1,9 +1,13 @@
 import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.colors import Normalize
 import pandas as pd
 import umap
+import itertools
+
+import matplotlib
+matplotlib.use("TkAgg")
+from matplotlib import pyplot as plt
 from tqdm import tqdm
+from matplotlib.colors import Normalize
 
 from sklearn.svm import SVC
 from sklearn.preprocessing import StandardScaler
@@ -62,7 +66,46 @@ class Optparams():
         data_frame = pd.DataFrame(params, columns = ['metric', 'nearest_neighbors', 'min_distance', 'score'])
         data_frame.to_csv(f'hyper_params_2_{kwargs["amount"]}.txt',index=False)
 
-    def grid_search(self):
+    def best_cols(self, df, col_pred_amount):
+        """ input is a large dataframe which contains certain columns and a 'RISV_Waarde' column
+            output is .txt file consisting of 2+ columns with its prediction of the 'RISV_Waarde' column"""
+
+        # make the database 50/50 of R and S counts in the RISV_Waarde column
+        df.drop(df.loc[(df['RISV_Waarde']=='V') | (df['RISV_Waarde']=='I')].index, inplace=True)
+        df.sort_values(by=['RISV_Waarde'], ascending=False, inplace=True)
+        rest = df.RISV_Waarde.value_counts()['S'] - df.RISV_Waarde.value_counts()['R']
+        df = df.iloc[rest:,].copy()
+
+        for col in df.columns:
+            df[col].fillna("0", inplace=True)
+
+        # split the predicton column of the df and remove the biased columns
+        y = df['RISV_Waarde']
+        df.drop(['Monsternummer', 'IsolaatNummer', 'RISV_Waarde', 'Pseudo_id'], inplace=True, axis=1)
+
+        # split the column in col_pred_amount amount of tuples for each possible combination
+        df_col_combinations = list(itertools.combinations(list(df), col_pred_amount))
+
+        # test for each combination of columns how well they predict R or S
+        columns_score = []
+        for i in tqdm(range(len(df_col_combinations))):
+            col_1, col_2, col_3  = df_col_combinations[i]
+            X = pd.get_dummies(df[[col_1, col_2, col_3]])
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size = 0.20, random_state = 40)
+
+            trans = umap.UMAP(n_neighbors=kwargs["nn"], min_dist=kwargs["min_dis"], n_components=2, metric=kwargs["metric"], random_state=42).fit(X_train)
+            svc = SVC(gamma = 'auto').fit(trans.embedding_, y_train)
+            test_prediction = trans.transform(X_test)
+            print(df_col_combinations[i], svc.score(test_prediction, y_test))
+            
+            columns_score.append([str(col_1), str(col_2), str(col_3), svc.score(test_prediction, y_test)])
+        
+        # write results to a .txt file
+        data_frame = pd.DataFrame(columns_score, columns = ['col_1', 'col_2', 'col_3', 'score'])
+        data_frame.to_csv(f'shuffled_best_cols_{kwargs["amount"]}.txt',index=False)
+
+
+    def copied_grid_search(self):
         df = pd.read_csv('../../offline_files/15 columns from BepalingTekstMetIsolatenResistentie_tot_103062.txt', sep='\t', encoding="UTF-16")  
         df3 = df.iloc[:100_000]
         df3.drop(df3.loc[(df3['RISV_Waarde']=='V') | (df3['RISV_Waarde']=='I')].index, inplace=True)

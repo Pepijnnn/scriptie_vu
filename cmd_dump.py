@@ -16,6 +16,8 @@ class CMD_info():
         print(f'length model = {len(model[:, 0])}')
         # df = whole_df.iloc[:len(model[:, 0])]
         
+        print(whole_df['Pseudo_id'].astype(object).describe())
+
         # add cluster locations per row in df
         # df['coordinates'] = list(zip(model[:, 0], model[:, 1]))
 
@@ -36,14 +38,15 @@ class CMD_info():
             locs = [i for i in cluster_dict.get(key)]
             # new_df = whole_df.loc[locs]
             new_df = whole_df[whole_df['Pseudo_id'].isin(locs)]
-            # print(new_df.head())
-            # print(whole_df.head())
-            # exit()
+            
             # print the information about each column for each cluster to the command prompt
             print(f"#################################### CLUSTER {key}  ##########################################################################################")
             # print(new_df['coordinates'].head(5))
             for column in new_df.columns:
                 print(column, len(new_df[column].dropna()))
+                if column == 'Pseudo_id':
+                    print(new_df[column].dropna().astype(object).describe())
+                    continue
                 try:
                     print(pd.to_numeric(new_df[column].dropna().str.replace(',', '.').astype(float)).describe())
                 except AttributeError:
@@ -54,14 +57,15 @@ class CMD_info():
 
 
 ################################# OLD CODE ##############################
+def index_to_pseudo_dict(self, df, cluster_dict_first):
+    df_indices = dict()
+    for i in range(estimator.n_clusters):
+        cluster_coords = cluster_dict_first.get(i)
+        # make new dataframe from rows that have the coordinates from cluster_coords
+        sub_df = df.loc[df['coordinates'].isin(cluster_coords)]
+        df_indices[i] = sub_df.index.values
 
-# df_indices = dict()
-# for i in range(estimator.n_clusters):
-#     cluster_coords = cluster_dict_first.get(i)
-#     # make new dataframe from rows that have the coordinates from cluster_coords
-#     sub_df = df.loc[df['coordinates'].isin(cluster_coords)]
-#     df_indices[i] = sub_df.index.values
-
-# add the indices per cluster to the dict
-# cluster_dict = {i: (df_indices.get(i), np.where(estimator.labels_ == i)[0])[1] for i in range(estimator.n_clusters)}
-# print(f'Dit zijn die clusters weer gecombineerd{cluster_dict}')
+    # add the indices per cluster to the dict
+    cluster_dict = {i: (df_indices.get(i), np.where(estimator.labels_ == i)[0])[1] for i in range(estimator.n_clusters)}
+    print(f'Dit zijn die clusters weer gecombineerd{cluster_dict}')
+    return cluster_dict
