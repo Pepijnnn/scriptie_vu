@@ -53,8 +53,9 @@ def main(**kwargs):
     # per_patient_opname = pd.read_csv('../../offline_files/per_patient_full_15 columns from mmi_Opname_Opname.txt', sep='\t', encoding="UTF-16", low_memory=False)  
     # per_patient_opname_p_b = pd.read_csv('../../offline_files/per_patient_full_28 columns from mmi_Opname_Opnameperiode_PerBed.txt', sep='\t', encoding="UTF-16", low_memory=False)  
     kweken_ab_opnames_01 = pd.read_csv('../../offline_files/kweken_ab_opnames_0.1.txt', sep='\t', encoding="UTF-16", low_memory=False)  
+    kweken_ab_opnames_02 = pd.read_csv('../../offline_files/Datafile_pepijn_pid.txt', sep='\t', encoding="UTF-16", low_memory=False)  
 
-    print("done importing csv's") # Datafile voor pepijn
+    print("done importing csv's")
 
     def create_new_text(df, name):
         tfile = open('../../offline_files/{}.txt'.format(name), 'w+')
@@ -179,7 +180,8 @@ def main(**kwargs):
     if kwargs["f"] == "a":
         ten(per_patient_problemlist.copy()) #.iloc[:kwargs["amount"]]
     elif kwargs["f"] == "cnumap":
-        u.create_umap_kweken_ab_opname(kweken_ab_opnames_01)
+        # u.create_umap_kweken_ab_opname(kweken_ab_opnames_01)
+        c.cluster_info_tho("thomasfile_flitered_length = 6591 metric = sokalmichener, nn = 20, md = 0.2.pkl", kweken_ab_opnames_01, 8)
     elif kwargs["f"] == "cumap":
         u.create_umap_per_department(tab_eight.iloc[:kwargs["amount"]])
     elif kwargs["f"] == "cmdinfo":
