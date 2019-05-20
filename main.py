@@ -32,6 +32,7 @@ import re
 from plots import Plots
 from cmd_dump import CMD_info
 from umap_creator import Umaps
+from random_forest_how_s_to_r import RF
 
 def main(**kwargs):
     print("importing csv's")
@@ -53,7 +54,7 @@ def main(**kwargs):
     # per_patient_opname = pd.read_csv('../../offline_files/per_patient_full_15 columns from mmi_Opname_Opname.txt', sep='\t', encoding="UTF-16", low_memory=False)  
     # per_patient_opname_p_b = pd.read_csv('../../offline_files/per_patient_full_28 columns from mmi_Opname_Opnameperiode_PerBed.txt', sep='\t', encoding="UTF-16", low_memory=False)  
     kweken_ab_opnames_01 = pd.read_csv('../../offline_files/kweken_ab_opnames_0.1.txt', sep='\t', encoding="UTF-16", low_memory=False)  
-    kweken_ab_opnames_02 = pd.read_csv('../../offline_files/Datafile_pepijn_pid.txt', sep='\t', encoding="UTF-16", low_memory=False)  
+    kweken_ab_opnames_02 = pd.read_csv('../../offline_files/kweken_ab_opnames_0.2_pid.txt', sep='\t', encoding="UTF-16", low_memory=False)  
 
     print("done importing csv's")
 
@@ -175,13 +176,19 @@ def main(**kwargs):
     p = Plots()
     c = CMD_info()
     u = Umaps()
+    r = RF()
 
     # guide to the function you want to use
     if kwargs["f"] == "a":
         ten(per_patient_problemlist.copy()) #.iloc[:kwargs["amount"]]
+    elif kwargs["f"] == "rf":
+        r.make_test_tree(kweken_ab_opnames_02)
     elif kwargs["f"] == "cnumap":
-        # u.create_umap_kweken_ab_opname(kweken_ab_opnames_01)
-        c.cluster_info_tho("thomasfile_flitered_length = 6591 metric = sokalmichener, nn = 20, md = 0.2.pkl", kweken_ab_opnames_01, 8)
+        # u.create_umap_kweken_ab_opname(kweken_ab_opnames_02)
+        # exit()
+        umap_pickle_name = "thomasfile_flitered_length_pid = 6591 metric = sokalmichener, nn = 20, md = 0.2.pkl"
+        # c.cluster_info_tho("thomasfile_flitered_length = 6591 metric = sokalmichener, nn = 20, md = 0.2.pkl", kweken_ab_opnames_01, 8)
+        c.cluster_info_tho(umap_pickle_name, kweken_ab_opnames_02, tab_eight, 7)
     elif kwargs["f"] == "cumap":
         u.create_umap_per_department(tab_eight.iloc[:kwargs["amount"]])
     elif kwargs["f"] == "cmdinfo":
@@ -206,7 +213,7 @@ def main(**kwargs):
 if __name__ == '__main__':
     # optimal min_dis = 0.15, metric = yule, nn= 6
     parser = argparse.ArgumentParser(description = 'Unsupervised learning function')
-    parser.add_argument("--f", default="cnumap", help="select which function to use")
+    parser.add_argument("--f", default="rf", help="select which function to use")
     parser.add_argument("--amount", default=400_000, help="select over how many rows you want to do the unsupervised learning")
     parser.add_argument("--nn", default=25,  help="select the amount of nn cells for the umap")
     parser.add_argument("--min_dis", default=0.0,  help="select the minimal distance for the umap")

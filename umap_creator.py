@@ -18,6 +18,11 @@ import re
 class Umaps():
 
     def create_perc_df(self, df):
+        # sort database to the pseudoid column
+        pd.to_numeric(df["Column 47"], errors='coerce')
+        df.rename(columns={"Column 47":"Pseudo_id"}, inplace=True)
+        df.sort_values(['Pseudo_id'], inplace=True)
+
         # sub-dataframe of percentage R/S and the total of R+S instead of just total R and total S
         RS_df = df[[col for col in df.columns if str(col)[-2] == "_"]]
         percentage_total_RS = pd.DataFrame()
@@ -45,16 +50,15 @@ class Umaps():
         return new_df
 
     # sokalmichener, rogerstanimoto
-    def create_umap_kweken_ab_opname(self, df, nn=70, min_dist=0.2, metric='sokalmichener', n_comp = 2):
+    def create_umap_kweken_ab_opname(self, df, nn=20, min_dist=0.2, metric='sokalmichener', n_comp = 2):
         
         new_df = self.create_perc_df(df)
 
         u = umap.UMAP(n_neighbors=nn, min_dist=min_dist, n_components=n_comp, metric=metric).fit_transform(new_df)
-
-        title = str(f"thomasfile_flitered_length = {len(new_df)} metric = {metric}, nn = {nn}, md = {min_dist}.pkl")
+        
+        title = str(f"thomasfile_flitered_length_pid = {len(new_df)} metric = {metric}, nn = {nn}, md = {min_dist}.pkl")
         joblib_file = title
         joblib.dump(u, joblib_file)
-        
 
         ax = sns.scatterplot(data=df, x=u[:, 0], y=u[:, 1], s=10, palette='Spectral') # , hue="Avg(MIC)", legend="full" , linewidth=0
         ax.set_title(title)
