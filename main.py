@@ -53,8 +53,11 @@ def main(**kwargs):
     # per_patient_meddiag = pd.read_csv('../../offline_files/per_patient_full_10 columns from mmi_MedischeDiagnose.txt', sep='\t', encoding="UTF-16", low_memory=False)  
     # per_patient_opname = pd.read_csv('../../offline_files/per_patient_full_15 columns from mmi_Opname_Opname.txt', sep='\t', encoding="UTF-16", low_memory=False)  
     # per_patient_opname_p_b = pd.read_csv('../../offline_files/per_patient_full_28 columns from mmi_Opname_Opnameperiode_PerBed.txt', sep='\t', encoding="UTF-16", low_memory=False)  
-    kweken_ab_opnames_01 = pd.read_csv('../../offline_files/kweken_ab_opnames_0.1.txt', sep='\t', encoding="UTF-16", low_memory=False)  
-    kweken_ab_opnames_02 = pd.read_csv('../../offline_files/kweken_ab_opnames_0.2_pid.txt', sep='\t', encoding="UTF-16", low_memory=False)  
+    # kweken_ab_opnames_01 = pd.read_csv('../../offline_files/kweken_ab_opnames_0.1.txt', sep='\t', encoding="UTF-16", low_memory=False)  
+    # kweken_ab_opnames_02 = pd.read_csv('../../offline_files/kweken_ab_opnames_0.2_pid.txt', sep='\t', encoding="UTF-16", low_memory=False) 
+    # kweken_ab_opnames_03 = pd.read_csv('../../offline_files/Pepijn Data zelfdoen.txt', sep='\t', encoding="UTF-16", low_memory=False) 
+    kweken_ab_opnames_04 = pd.read_csv('../../offline_files/Pepijn Data zelfdoen2.txt', sep='\t', encoding="UTF-16", low_memory=False) 
+    kweken_ab_opnames_05 = pd.read_csv('../../offline_files/Pepijn Data zelfdoen3.txt', sep='\t', encoding="UTF-16", low_memory=False) 
 
     print("done importing csv's")
 
@@ -182,7 +185,7 @@ def main(**kwargs):
     if kwargs["f"] == "a":
         ten(per_patient_problemlist.copy()) #.iloc[:kwargs["amount"]]
     elif kwargs["f"] == "rf":
-        r.make_test_tree(kweken_ab_opnames_02)
+        r.make_test_tree(kweken_ab_opnames_05)
     elif kwargs["f"] == "cnumap":
         # u.create_umap_kweken_ab_opname(kweken_ab_opnames_02)
         # exit()
