@@ -56,8 +56,12 @@ def main(**kwargs):
     # kweken_ab_opnames_01 = pd.read_csv('../../offline_files/kweken_ab_opnames_0.1.txt', sep='\t', encoding="UTF-16", low_memory=False)  
     # kweken_ab_opnames_02 = pd.read_csv('../../offline_files/kweken_ab_opnames_0.2_pid.txt', sep='\t', encoding="UTF-16", low_memory=False) 
     # kweken_ab_opnames_03 = pd.read_csv('../../offline_files/Pepijn Data zelfdoen.txt', sep='\t', encoding="UTF-16", low_memory=False) 
-    kweken_ab_opnames_04 = pd.read_csv('../../offline_files/Pepijn Data zelfdoen2.txt', sep='\t', encoding="UTF-16", low_memory=False) 
-    kweken_ab_opnames_05 = pd.read_csv('../../offline_files/Pepijn Data zelfdoen3.txt', sep='\t', encoding="UTF-16", low_memory=False) 
+    # kweken_ab_opnames_04 = pd.read_csv('../../offline_files/Pepijn Data zelfdoen2.txt', sep='\t', encoding="UTF-16", low_memory=False) 
+    # kweken_ab_opnames_05 = pd.read_csv('../../offline_files/Pepijn Data zelfdoen3.txt', sep='\t', encoding="UTF-16", low_memory=False) 
+    # kweken_ab_opnames_06 = pd.read_csv('../../offline_files/Pepijn Data zelfdoen 4 SS bias weg.txt', sep='\t', encoding="UTF-16", low_memory=False) 
+    pepijn_data_1 = pd.read_csv('../../offline_files/Pepijn Data (1).txt', sep='\t', encoding="UTF-16", low_memory=False) 
+    pepijn_data_2 = pd.read_csv('../../offline_files/Pepijn Data (2).txt', sep='\t', encoding="UTF-16", low_memory=False) 
+    pepijn_data_3 = pd.read_csv('../../offline_files/Pepijn Data (3).txt', sep='\t', encoding="UTF-16", low_memory=False) 
 
     print("done importing csv's")
 
@@ -185,7 +189,9 @@ def main(**kwargs):
     if kwargs["f"] == "a":
         ten(per_patient_problemlist.copy()) #.iloc[:kwargs["amount"]]
     elif kwargs["f"] == "rf":
-        r.make_test_tree(kweken_ab_opnames_05)
+        # r.make_test_tree(pepijn_data_1)
+        # r.make_test_tree(pepijn_data_2)
+        r.make_test_tree(pepijn_data_3)
     elif kwargs["f"] == "cnumap":
         # u.create_umap_kweken_ab_opname(kweken_ab_opnames_02)
         # exit()
