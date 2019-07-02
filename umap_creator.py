@@ -49,8 +49,8 @@ class Umaps():
         new_df = pd.concat([percentage_total_RS, percentage_total_abs, percentage_total_deps], axis=1)
         return new_df
 
-    # sokalmichener, rogerstanimoto
-    def create_umap_kweken_ab_opname(self, df, nn=20, min_dist=0.2, metric='sokalmichener', n_comp = 2):
+    # cosine
+    def create_umap_kweken_ab_opname(self, df, nn=20, min_dist=0.2, metric='cosine', n_comp = 2):
         
         new_df = self.create_perc_df(df)
 

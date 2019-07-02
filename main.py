@@ -33,6 +33,7 @@ from plots import Plots
 from cmd_dump import CMD_info
 from umap_creator import Umaps
 from random_forest_how_s_to_r import RF
+from neural_network import NeuralNetwork as NN
 
 def main(**kwargs):
     print("importing csv's")
@@ -47,13 +48,14 @@ def main(**kwargs):
     # tab_seven = pd.read_csv('../../offline_files/15 columns from BepalingTekstMetIsolatenResistentie_1maart2018_1maart2019.txt', sep='\t', encoding="UTF-16")  
     tab_eight = pd.read_csv('../../offline_files/15 columns from BepalingTekstMetIsolatenResistentie_tot_103062.txt', sep='\t', encoding="UTF-16", low_memory=False)  
     # tab_nine = pd.read_csv('../../offline_files/12 columns from BepalingTekstMetIsolatenResistentie.txt', sep='\t', encoding="UTF-16", low_memory=False)  
-    # tab_ten = pd.read_csv('../../offline_files/Datafile voor pepijn.txt', sep='\t', encoding="UTF-16", low_memory=False)  
+    tab_ten = pd.read_csv('../../offline_files/Datafile voor pepijn.txt', sep='\t', encoding="UTF-16", low_memory=False)  
+    pa = pd.read_csv('../../offline_files/Pepijn_Data_Pseudomonas_aeruginosa.txt', sep='\t', encoding="UTF-16", low_memory=False)
     # per_patient_problemlist = pd.read_csv('../../offline_files/per_patient_full_6 columns from mmi_Problemlist.txt', sep='\t', encoding="UTF-16", low_memory=False)  
     # per_patient_isolaten = pd.read_csv('../../offline_files/per_patient_full_10 columns from mmi_Lab_MMI_Isolaten.txt', sep='\t', encoding="UTF-16", low_memory=False)  
     # per_patient_meddiag = pd.read_csv('../../offline_files/per_patient_full_10 columns from mmi_MedischeDiagnose.txt', sep='\t', encoding="UTF-16", low_memory=False)  
     # per_patient_opname = pd.read_csv('../../offline_files/per_patient_full_15 columns from mmi_Opname_Opname.txt', sep='\t', encoding="UTF-16", low_memory=False)  
     # per_patient_opname_p_b = pd.read_csv('../../offline_files/per_patient_full_28 columns from mmi_Opname_Opnameperiode_PerBed.txt', sep='\t', encoding="UTF-16", low_memory=False)  
-    # kweken_ab_opnames_01 = pd.read_csv('../../offline_files/kweken_ab_opnames_0.1.txt', sep='\t', encoding="UTF-16", low_memory=False)  
+    kweken_ab_opnames_01 = pd.read_csv('../../offline_files/kweken_ab_opnames_0.1.txt', sep='\t', encoding="UTF-16", low_memory=False)  
     # kweken_ab_opnames_02 = pd.read_csv('../../offline_files/kweken_ab_opnames_0.2_pid.txt', sep='\t', encoding="UTF-16", low_memory=False) 
     # kweken_ab_opnames_03 = pd.read_csv('../../offline_files/Pepijn Data zelfdoen.txt', sep='\t', encoding="UTF-16", low_memory=False) 
     # kweken_ab_opnames_04 = pd.read_csv('../../offline_files/Pepijn Data zelfdoen2.txt', sep='\t', encoding="UTF-16", low_memory=False) 
@@ -61,7 +63,9 @@ def main(**kwargs):
     # kweken_ab_opnames_06 = pd.read_csv('../../offline_files/Pepijn Data zelfdoen 4 SS bias weg.txt', sep='\t', encoding="UTF-16", low_memory=False) 
     pepijn_data_1 = pd.read_csv('../../offline_files/Pepijn Data (1).txt', sep='\t', encoding="UTF-16", low_memory=False) 
     pepijn_data_2 = pd.read_csv('../../offline_files/Pepijn Data (2).txt', sep='\t', encoding="UTF-16", low_memory=False) 
+    pepijn_data_2_2 = pd.read_csv('../../offline_files/cotrim_met_dagen_opgenomen.txt', sep='\t', encoding="UTF-16", low_memory=False) 
     pepijn_data_3 = pd.read_csv('../../offline_files/Pepijn Data (3).txt', sep='\t', encoding="UTF-16", low_memory=False) 
+    
 
     print("done importing csv's")
 
@@ -133,6 +137,10 @@ def main(**kwargs):
             min_dist=kwargs["min_dis"])        
 
     def ten(short_table):
+        print(short_table.head(10))
+        for col in short_table.columns:
+            print(short_table[col].describe())
+        exit()
         short_table.drop(['Pseudo_id','Geslacht','IsOverleden','Postcode'], axis=1, inplace=True)
         short_table.fillna("0", inplace=True)
         for col in short_table.columns:
@@ -184,15 +192,20 @@ def main(**kwargs):
     c = CMD_info()
     u = Umaps()
     r = RF()
+    nn = NN()
 
     # guide to the function you want to use
     if kwargs["f"] == "a":
-        ten(per_patient_problemlist.copy()) #.iloc[:kwargs["amount"]]
+        ten(kweken_ab_opnames_01)
+        # ten(per_patient_problemlist.copy()) #.iloc[:kwargs["amount"]]
+    elif kwargs["f"] == "nn":
+        nn.make_nn(pepijn_data_1)
     elif kwargs["f"] == "rf":
         # r.make_test_tree(pepijn_data_1)
-        # r.make_test_tree(pepijn_data_2)
-        r.make_test_tree(pepijn_data_3)
+        r.make_test_tree(pepijn_data_2_2)
+        # r.make_test_tree(pepijn_data_3)
     elif kwargs["f"] == "cnumap":
+        c.pseudo_aer(pa)
         # u.create_umap_kweken_ab_opname(kweken_ab_opnames_02)
         # exit()
         umap_pickle_name = "thomasfile_flitered_length_pid = 6591 metric = sokalmichener, nn = 20, md = 0.2.pkl"
